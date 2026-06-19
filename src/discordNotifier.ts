@@ -17,7 +17,7 @@ export async function sendDailyDiscordReport() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Szukamy najlepszych spółek według kryteriów: Upside > 30% ORAZ CAGR 2Y > 30%
+        // Szukamy najlepszych spółek według kryteriów: Upside > 30% ORAZ CAGR 2Y > 30% ORAZ Market Cap > 10 mld
         const topStocks = await prisma.stockData.findMany({
             where: {
                 date: {
@@ -28,6 +28,9 @@ export async function sendDailyDiscordReport() {
                 },
                 cagr2YForward: {
                     gte: 0.30 // Powyżej 30%
+                },
+                marketCap: {
+                    gte: 10000000000 // Powyżej 10 miliardów USD
                 }
             },
             orderBy: {
@@ -36,7 +39,7 @@ export async function sendDailyDiscordReport() {
         });
 
         if (topStocks.length === 0) {
-            console.log('Brak spółek spełniających wyśrubowane kryteria (Upside > 30% & CAGR > 30%) w dzisiejszym skanowaniu.');
+            console.log('Brak spółek spełniających wyśrubowane kryteria (Upside > 30%, CAGR > 30%, Cap > 10B) w dzisiejszym skanowaniu.');
             // Opcjonalnie: można tu wysłać info, że nic nie znaleziono, ale bot będzie wtedy "spamił". Lepiej milczeć.
             return;
         }
@@ -63,7 +66,7 @@ export async function sendDailyDiscordReport() {
             content: "🚨 **Skanowanie Giełdy Zakończone!** Znaleziono potencjalne perełki inwestycyjne z dzisiejszego dnia.",
             embeds: [
                 {
-                    title: "🏆 Top Spółki (Upside > 30% & 2Y CAGR > 30%)",
+                    title: "🏆 Top Spółki (Upside > 30% | 2Y CAGR > 30% | Cap > $10B)",
                     color: 3066993, // Ładny zielony kolor HEX #2EC4B6 konwertowany do dec
                     timestamp: new Date().toISOString(),
                     fields: fields,
