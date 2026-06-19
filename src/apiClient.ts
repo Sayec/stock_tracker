@@ -81,6 +81,18 @@ export async function getAnalystEstimates(symbol: string): Promise<{ t0: number;
   };
 }
 
+export interface ScreenerCompany {
+  symbol: string;
+  companyName: string;
+  exchangeShortName: string;
+  isActivelyTrading: boolean;
+}
+
+export async function getCompaniesScreener(): Promise<ScreenerCompany[]> {
+  const response = await axios.get(`${BASE_URL_STABLE}/company-screener?exchange=NASDAQ,NYSE,AMEX&limit=100000&apikey=${API_KEY}&isEtf=false&isFund=false&isActivelyTrading=true`);
+  return response.data || [];
+}
+
 export async function getPriceTarget(symbol: string): Promise<PriceTarget | null> {
   const response = await axios.get(`${BASE_URL_STABLE}/price-target-consensus?symbol=${symbol}&apikey=${API_KEY}`);
   if (response.data && response.data.length > 0) {

@@ -3,18 +3,55 @@ import { getQuote, getCurrentRevenue, getAnalystEstimates, getPriceTarget } from
 import { calculateRevenue2YGrowth, calculatePSRatioForward, calculatePSG, calculateUpside } from './metrics';
 
 const prisma = new PrismaClient();
-const SYMBOLS = ['TSLA', 'AMZN', 'MSFT', 'NVDA', 'GOOGL', 'META'];
+
+// Bezpieczny mechanizm Throttling (Rate Limiting)
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function main() {
-    console.log('Rozpoczynam pobieranie danych dla spółek...');
+    console.log('Uruchamianie procesu pobierania wskaźników...');
     
-    for (const symbol of SYMBOLS) {
-        console.log(`\n--- Analiza dla: ${symbol} ---`);
+    // 1. Pobieramy wszystkie aktywne spółki z bazy
+    const companies = await prisma.company.findMany({
+        where: { isActive: true },
+        select: { symbol: true }
+    });
+
+    console.log(`Liczba aktywnych spółek w bazie do przetworzenia: ${companies.length}`);
+
+    // Data potrzebna do weryfikacji czy spółka była dzisiaj pobrana
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let processedCount = 0;
+    let skippedCount = 0;
+
+    for (let i = 0; i < companies.length; i++) {
+        const symbol = companies[i].symbol;
+        
+        // 2. Sprawdzamy czy spółka była już dzisiaj zaktualizowana (RESUMABILITY)
+        const existingData = await prisma.stockData.findUnique({
+            where: {
+                symbol_date: {
+                    symbol: symbol,
+                    date: today
+                }
+            }
+        });
+
+        if (existingData) {
+            skippedCount++;
+            // Pomijamy bez sleepa, bo nie wysyłaliśmy zapytania do zewnętrznego API
+            continue;
+        }
+
+        console.log(`\n--- Analiza dla: ${symbol} (${i + 1}/${companies.length}) ---`);
         
         try {
+            // 3. Pobieranie danych z API (4 requesty)
             const quote = await getQuote(symbol);
             if (!quote) {
                 console.log(`Brak danych o cenie (quote) dla ${symbol}`);
+                await sleep(1000); // Throttling
                 continue;
             }
 
@@ -22,59 +59,21 @@ async function main() {
             const estimates = await getAnalystEstimates(symbol);
             const priceTarget = await getPriceTarget(symbol);
             
-            if (!revenueCurrent) {
-                console.log(`Brak danych o obecnych przychodach (revenue_current) dla ${symbol}`);
-                continue;
-            }
-            if (!estimates) {
-                console.log(`Brak danych o przyszłych przychodach (estimates) dla ${symbol}`);
-                continue;
-            }
-            if (!priceTarget) {
-                console.log(`Brak danych o wycenie analityków (price target) dla ${symbol}`);
+            if (!revenueCurrent || !estimates || !priceTarget) {
+                console.log(`Brakujące dane fundamentalne dla ${symbol}. Pomijanie.`);
+                await sleep(1000); // Throttling
                 continue;
             }
             
+            // 4. Obliczenia wskaźników
             const revenue2YGrowth = calculateRevenue2YGrowth(estimates.t0, estimates.t2);
             const psRatioForward = calculatePSRatioForward(quote.marketCap, estimates.t2);
             const psgRatio = calculatePSG(psRatioForward, revenue2YGrowth);
             const upside = calculateUpside(priceTarget.targetConsensus, quote.price);
-            
-            console.log(`Obecna cena: $${quote.price}`);
-            console.log(`Market Cap: $${quote.marketCap.toLocaleString()}`);
-            console.log(`Obecne przychody (raportowane): $${revenueCurrent.toLocaleString()}`);
-            console.log(`Prognoza (T0 - bieżący rok): $${estimates.t0.toLocaleString()}`);
-            console.log(`Prognoza (T+2 - za 2 lata): $${estimates.t2.toLocaleString()}`);
-            console.log(`Wskaźniki:`);
-            console.log(`- 2Y Revenue Growth (CAGR): ${(revenue2YGrowth * 100).toFixed(2)}%`);
-            console.log(`- P/S Ratio (2Y Forward): ${psRatioForward.toFixed(2)}`);
-            console.log(`- PSG Ratio: ${psgRatio.toFixed(2)}`);
-            console.log(`- Analyst Upside: ${(upside * 100).toFixed(2)}% (Target: $${priceTarget.targetConsensus})`);
 
-            // Zapis do bazy danych
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            await prisma.stockData.upsert({
-                where: {
-                    symbol_date: {
-                        symbol: symbol,
-                        date: today
-                    }
-                },
-                update: {
-                    price: quote.price,
-                    marketCap: quote.marketCap,
-                    revenueCurrent: revenueCurrent,
-                    revenueEstT0: estimates.t0,
-                    revenueEstT2: estimates.t2,
-                    targetConsensus: priceTarget.targetConsensus,
-                    cagr2YForward: revenue2YGrowth,
-                    psRatioForward: psRatioForward,
-                    psgRatio: psgRatio,
-                    upside: upside
-                },
-                create: {
+            // 5. Zapis do bazy
+            await prisma.stockData.create({
+                data: {
                     symbol: symbol,
                     date: today,
                     price: quote.price,
@@ -89,18 +88,24 @@ async function main() {
                     upside: upside
                 }
             });
-            console.log(`[DB] Zapisano dane dla ${symbol} do bazy pomyślnie.`);
+            console.log(`[DB] Zapisano dane dla ${symbol}.`);
+            processedCount++;
 
         } catch (error: any) {
+            // Ignorujemy błędy i kontynuujemy pobieranie dla innych spółek
             console.error(`Błąd podczas przetwarzania ${symbol}:`, error.message);
         }
+
+        // 6. TWARDY LIMIT API: Czekamy ~1000ms po każdej spółce (ochrona przed zbanowaniem)
+        await sleep(1000);
     }
+
+    console.log(`\n✅ Zakończono przetwarzanie. Nowe wpisy: ${processedCount}, pominięte (już były): ${skippedCount}`);
 }
 
 main()
   .then(async () => {
     await prisma.$disconnect();
-    console.log('\n✅ Zakończono przetwarzanie.');
   })
   .catch(async (e) => {
     console.error(e);

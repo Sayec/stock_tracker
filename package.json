@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start:api": "ts-node src/server.ts",
+    "sync:companies": "ts-node src/syncCompanies.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

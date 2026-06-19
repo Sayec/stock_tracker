@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Company {
+  symbol   String  @id
+  name     String
+  isActive Boolean @default(true)
+}
+
 model StockData {
   id              Int      @id @default(autoincrement())
   symbol          String
