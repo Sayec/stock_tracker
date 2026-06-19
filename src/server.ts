@@ -10,32 +10,46 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// 1. Endpoint zwracający listę wszystkich aktywnych spółek (do wyszukiwarki)
+app.get('/api/companies', async (req, res) => {
+    try {
+        const companies = await prisma.company.findMany({
+            where: { isActive: true },
+            select: { symbol: true, name: true }
+        });
+        res.json(companies);
+    } catch (error) {
+        console.error('Błąd pobierania firm:', error);
+        res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+    }
+});
+
+// 2. Endpoint zwracający historię wskaźników dla KONKRETNEJ spółki
 app.get('/api/stocks', async (req, res) => {
+    const symbol = req.query.symbol as string;
+    
+    if (!symbol) {
+        return res.status(400).json({ error: 'Należy podać parametr symbol' });
+    }
+
     try {
         const data = await prisma.stockData.findMany({
-            orderBy: {
-                date: 'asc'
-            }
+            where: { symbol: symbol },
+            orderBy: { date: 'asc' }
         });
 
-        // Grupujemy dane dla frontendu, by wyrysować linie na wykresach
-        const groupedBySymbol = data.reduce((acc: any, curr) => {
-            if (!acc[curr.symbol]) {
-                acc[curr.symbol] = [];
-            }
-            acc[curr.symbol].push({
-                date: curr.date.toISOString().split('T')[0],
-                price: curr.price,
-                cagr2YForward: parseFloat((curr.cagr2YForward * 100).toFixed(2)),
-                psgRatio: parseFloat(curr.psgRatio.toFixed(2)),
-                upside: parseFloat((curr.upside * 100).toFixed(2)),
-            });
-            return acc;
-        }, {});
+        // Formatowanie pod wykres
+        const formatted = data.map(curr => ({
+            date: curr.date.toISOString().split('T')[0],
+            price: curr.price,
+            cagr2YForward: parseFloat((curr.cagr2YForward * 100).toFixed(2)),
+            psgRatio: parseFloat(curr.psgRatio.toFixed(2)),
+            upside: parseFloat((curr.upside * 100).toFixed(2)),
+        }));
 
-        res.json(groupedBySymbol);
+        res.json(formatted);
     } catch (error) {
-        console.error('Błąd podczas pobierania danych z bazy:', error);
+        console.error(`Błąd pobierania danych dla ${symbol}:`, error);
         res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
     }
 });
