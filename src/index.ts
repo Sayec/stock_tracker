@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { getQuote, getCurrentRevenue, getAnalystEstimates, getPriceTarget } from './apiClient';
 import { calculateRevenue2YGrowth, calculatePSRatioForward, calculatePSG, calculateUpside } from './metrics';
+import { sendDailyDiscordReport } from './discordNotifier';
 
 const prisma = new PrismaClient();
 
@@ -101,6 +102,9 @@ async function main() {
     }
 
     console.log(`\n✅ Zakończono przetwarzanie. Nowe wpisy: ${processedCount}, pominięte (już były): ${skippedCount}`);
+
+    // 7. WYSYŁKA RAPORTU NA DISCORD (podsumowanie dnia)
+    await sendDailyDiscordReport();
 }
 
 main()
