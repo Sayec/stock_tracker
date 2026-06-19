@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model StockData {
+  id              Int      @id @default(autoincrement())
+  symbol          String
+  date            DateTime @default(now()) // Data pobrania danych
+  
+  // Dane wejściowe
+  price           Float
+  marketCap       Float
+  revenueCurrent  Float
+  revenueEstT0    Float
+  revenueEstT2    Float
+  targetConsensus Float
+  
+  // Wyliczone wskaźniki
+  cagr2YForward   Float
+  psRatioForward  Float
+  psgRatio        Float
+  upside          Float
+
+  @@unique([symbol, date])
+}
