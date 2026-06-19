@@ -15,8 +15,6 @@ type Company = {
     name: string;
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
 function App() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +30,7 @@ function App() {
     useEffect(() => {
         const fetchCompanies = async () => {
             try {
-                const response = await fetch(`${API_URL}/api/companies`);
+                const response = await fetch(`/api/companies`);
                 if (!response.ok) throw new Error('Błąd pobierania listy spółek');
                 const result = await response.json();
                 setCompanies(result);
@@ -52,7 +50,7 @@ function App() {
         const fetchStockData = async () => {
             setLoadingData(true);
             try {
-                const response = await fetch(`${API_URL}/api/stocks?symbol=${selectedSymbol}`);
+                const response = await fetch(`/api/stocks?symbol=${selectedSymbol}`);
                 if (!response.ok) throw new Error('Błąd pobierania historii giełdowej');
                 const result = await response.json();
                 setStockData(result);
