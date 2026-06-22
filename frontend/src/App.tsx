@@ -152,7 +152,11 @@ function App() {
                                     <h2 className="symbol-name">{selectedSymbol}</h2>
                                     <div className="company-fullname">{selectedCompany?.name}</div>
                                 </div>
-                                {latestData && <span className="current-price" style={{ fontSize: '1.2rem' }}>${latestData.price?.toFixed(2)}</span>}
+                                {loadingData ? (
+                                    <span className="current-price loading-dots" style={{ fontSize: '1.2rem' }}></span>
+                                ) : (
+                                    latestData && <span className="current-price" style={{ fontSize: '1.2rem' }}>${latestData.price?.toFixed(2)}</span>
+                                )}
                             </div>
                         </div>
 

@@ -304,6 +304,23 @@ button.active {
   align-items: center;
 }
 
+.loading-dots {
+  display: inline-block;
+  min-width: 1.5rem;
+}
+
+.loading-dots::after {
+  content: '.';
+  animation: loadingDots 1.5s infinite steps(1);
+}
+
+@keyframes loadingDots {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66% { content: '...'; }
+  100% { content: '.'; }
+}
+
 .modal-content {
   background: var(--glass-bg);
   border: 1px solid #8b5cf6;
