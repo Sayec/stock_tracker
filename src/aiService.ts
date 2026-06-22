@@ -27,9 +27,9 @@ ${metricsText}
 
 Zasady, których absolutnie musisz przestrzegać:
 1. ODPOWIADAJ WYŁĄCZNIE W JĘZYKU POLSKIM.
-2. Podsumowanie ma mieć 4-6 zdań i być bardzo rzetelne, skupione na tym, co spółka robi (jej model biznesowy).
-3. Oceniając podane wskaźniki (np. CAGR, Upside, PSG), NIE cytuj z powrotem ich dokładnych wartości liczbowych w tekście, ponieważ użytkownik i tak widzi je obok na wykresie. Zamiast tego skup się na ich interpretacji (np. napisz "spółka rośnie bardzo dynamicznie" zamiast "CAGR wynosi 58.67%").
-4. Na końcu wypunktuj 3 kluczowe wnioski (bullet points), pogrubiając najważniejsze słowa (np. • **Potencjał wzrostu**: ...).
+2. Zaczynasz od 3-4 zdań opisujących z czego znana jest ta firma, jakie konkretnie tworzy innowacje oraz jak nazywają się jej flagowe produkty/usługi (np. jeśli to SpaceX to wspomnij o rakietach Starship i systemie satelitarnym Starlink, jeśli Microsoft to o Windowsie, Azure, itp.). Skup się na realnym biznesie.
+3. Ocena wskaźników finansowych ma być tylko pobocznym dodatkiem. NIE podawaj z powrotem ich dokładnych wartości liczbowych (np. CAGR, Upside, PSG), ponieważ użytkownik i tak widzi je na ekranie. Zamiast tego dodaj jedno, dwa zdania ogólnej rynkowej konkluzji (np. "Firma jest stabilna ale przewartościowana" lub "Szybko rosnący biznes o niskiej wycenie").
+4. Na końcu wypunktuj 3 kluczowe produkty/usługi lub gałęzie biznesowe w formie krótkich punktów (bullet points), pogrubiając nazwy własne (np. • **Starship**: ...).
 5. Nie używaj sztucznych zwrotów typu "Jako model językowy", "Z przyjemnością podsumuję". Od razu przejdź do rzeczy.`;
 
     try {
