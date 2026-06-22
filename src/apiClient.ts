@@ -14,6 +14,7 @@ export interface Quote {
   symbol: string;
   price: number;
   marketCap: number;
+  timestamp: number;
 }
 
 export interface IncomeStatement {

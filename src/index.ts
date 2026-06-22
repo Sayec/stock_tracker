@@ -10,6 +10,22 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function main() {
     console.log('Uruchamianie procesu pobierania wskaźników...');
+
+    // 0. Sprawdzenie, czy wczoraj była sesja giełdowa
+    try {
+        const spyQuote = await getQuote('SPY');
+        if (spyQuote && spyQuote.timestamp) {
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            // Jeśli ostatnia transakcja na SPY była więcej niż 22 godziny temu (79200 sekund)
+            if (nowSeconds - spyQuote.timestamp > 79200) {
+                console.log('Giełda w USA była wczoraj zamknięta (weekend lub święto). Ostatnia transakcja > 22h temu.');
+                console.log('Przerywam pobieranie, aby nie duplikować danych.');
+                return;
+            }
+        }
+    } catch (e) {
+        console.log('Nie udało się sprawdzić statusu giełdy. Kontynuuję pobieranie prewencyjnie.');
+    }
     
     // 1. Pobieramy wszystkie aktywne spółki z bazy
     const companies = await prisma.company.findMany({

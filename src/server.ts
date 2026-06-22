@@ -13,8 +13,17 @@ app.use(express.json());
 // 1. Endpoint zwracający listę wszystkich aktywnych spółek (do wyszukiwarki)
 app.get('/api/companies', async (req, res) => {
     try {
+        // Pobieramy tylko unikalne symbole z StockData (te, które na 100% mają dane i nie są ETF-ami bez wskaźników)
+        const symbolsWithData = await prisma.stockData.groupBy({
+            by: ['symbol'],
+        });
+        const validSymbols = symbolsWithData.map(s => s.symbol);
+
         const companies = await prisma.company.findMany({
-            where: { isActive: true },
+            where: { 
+                isActive: true,
+                symbol: { in: validSymbols }
+            },
             select: { symbol: true, name: true }
         });
         res.json(companies);
