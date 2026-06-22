@@ -191,7 +191,8 @@ button.active {
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   margin-top: 0.5rem;
-  overflow: hidden;
+  max-height: 400px;
+  overflow-y: auto;
   z-index: 100;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(12px);
@@ -322,7 +323,7 @@ button.active {
 }
 
 .modal-content {
-  background: var(--glass-bg);
+  background: var(--bg-dark);
   border: 1px solid #8b5cf6;
   border-radius: var(--card-radius);
   padding: 2rem;

@@ -20,17 +20,17 @@ Wskaźnik PSG (Price-to-Sales-to-Growth): ${latest.psgRatio.toFixed(2)}
 Potencjał wzrostu wg analityków (Upside): ${(latest.upside * 100).toFixed(2)}%`;
     }
 
-    const prompt = `Jesteś profesjonalnym, zwięzłym analitykiem giełdowym na Wall Street. 
+const prompt = `Jesteś profesjonalnym, zwięzłym analitykiem giełdowym na Wall Street. 
 Twoim zadaniem jest napisać krótkie, biznesowe podsumowanie dla spółki: ${companyName}.
 Oto jej aktualne wskaźniki giełdowe z naszego systemu:
 ${metricsText}
 
 Zasady, których absolutnie musisz przestrzegać:
-1. Podsumowanie ma mieć 4-6 zdań i być bardzo rzetelne.
-2. Zwróć uwagę na to, co spółka robi (jej model biznesowy) oraz skomentuj podane wskaźniki (np. wysoki/niski CAGR, potencjał Upside).
-3. Na końcu wypunktuj 3 kluczowe wnioski (bullet points), pogrubiając najważniejsze słowa (np. • **Silny wzrost**: ...).
-4. Nie używaj sztucznych zwrotów typu "Jako model językowy", "Z przyjemnością podsumuję". Od razu przejdź do rzeczy.
-`;
+1. ODPOWIADAJ WYŁĄCZNIE W JĘZYKU POLSKIM.
+2. Podsumowanie ma mieć 4-6 zdań i być bardzo rzetelne, skupione na tym, co spółka robi (jej model biznesowy).
+3. Oceniając podane wskaźniki (np. CAGR, Upside, PSG), NIE cytuj z powrotem ich dokładnych wartości liczbowych w tekście, ponieważ użytkownik i tak widzi je obok na wykresie. Zamiast tego skup się na ich interpretacji (np. napisz "spółka rośnie bardzo dynamicznie" zamiast "CAGR wynosi 58.67%").
+4. Na końcu wypunktuj 3 kluczowe wnioski (bullet points), pogrubiając najważniejsze słowa (np. • **Potencjał wzrostu**: ...).
+5. Nie używaj sztucznych zwrotów typu "Jako model językowy", "Z przyjemnością podsumuję". Od razu przejdź do rzeczy.`;
 
     try {
         const response = await ai.models.generateContent({
