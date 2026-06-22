@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+import { generateCompanySummary } from './aiService';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -26,6 +27,7 @@ app.get('/api/companies', async (req, res) => {
             },
             select: { symbol: true, name: true }
         });
+
         res.json(companies);
     } catch (error) {
         console.error('Błąd pobierania firm:', error);
@@ -60,6 +62,54 @@ app.get('/api/stocks', async (req, res) => {
     } catch (error) {
         console.error(`Błąd pobierania danych dla ${symbol}:`, error);
         res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+    }
+});
+
+// 3. Endpoint pobierający / generujący podsumowanie AI dla spółki
+app.get('/api/companies/:symbol/summary', async (req, res) => {
+    const symbol = req.params.symbol;
+    
+    try {
+        const company = await prisma.company.findUnique({
+            where: { symbol }
+        });
+
+        if (!company) {
+            return res.status(404).json({ error: 'Spółka nie istnieje' });
+        }
+
+        // Sprawdzamy czy podsumowanie istnieje i ma mniej niż 7 dni
+        const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+        const now = new Date();
+        const isFresh = company.aiSummaryDate && 
+            (now.getTime() - company.aiSummaryDate.getTime() < SEVEN_DAYS);
+
+        if (company.aiSummary && isFresh) {
+            // Zwracamy z pamięci cache (Baza danych)
+            return res.json({ aiSummary: company.aiSummary });
+        }
+
+        // Jeśli brakuje lub jest nieaktualne, odpytujemy AI
+        const data = await prisma.stockData.findMany({
+            where: { symbol: symbol },
+            orderBy: { date: 'asc' }
+        });
+
+        const newSummary = await generateCompanySummary(company.name, data);
+
+        // Zapisujemy nowy wynik w bazie
+        await prisma.company.update({
+            where: { symbol },
+            data: {
+                aiSummary: newSummary,
+                aiSummaryDate: new Date(),
+            }
+        });
+
+        res.json({ aiSummary: newSummary });
+    } catch (error) {
+        console.error(`Błąd przy AI dla ${symbol}:`, error);
+        res.status(500).json({ error: 'Błąd generowania podsumowania AI' });
     }
 });
 

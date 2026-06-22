@@ -8,9 +8,11 @@ datasource db {
 }
 
 model Company {
-  symbol   String  @id
-  name     String
-  isActive Boolean @default(true)
+  symbol        String    @id
+  name          String
+  isActive      Boolean   @default(true)
+  aiSummary     String?
+  aiSummaryDate DateTime?
 }
 
 model StockData {

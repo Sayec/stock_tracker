@@ -10,7 +10,8 @@
   --card-radius: 16px;
 }
 
-body, html {
+body,
+html {
   margin: 0;
   padding: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -29,20 +30,21 @@ body, html {
 }
 
 h1 {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
   background: -webkit-linear-gradient(45deg, #38bdf8, #818cf8);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-align: center;
+  text-align: left;
 }
 
 .subtitle {
   color: var(--text-muted);
-  font-size: 1.1rem;
-  margin-bottom: 3rem;
-  text-align: center;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+  text-align: left;
 }
 
 .dashboard {
@@ -64,11 +66,6 @@ h1 {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
-}
-
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5), 0 0 20px 0 var(--accent-glow);
 }
 
 .card-header {
@@ -100,24 +97,41 @@ h1 {
   margin-top: 1rem;
 }
 
-.controls {
+.layout-container {
   display: flex;
-  justify-content: center;
+  gap: 2rem;
+  align-items: flex-start;
+  width: 95%;
+  max-width: 1600px;
+}
+
+.sidebar-controls {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
+  position: sticky;
+  top: 2rem;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
 }
 
 button {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   color: var(--text-muted);
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 1rem;
+  border-radius: 12px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s ease;
   font-size: 1rem;
+  text-align: left;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 button:hover {
@@ -132,7 +146,8 @@ button.active {
   border-color: var(--accent);
 }
 
-.loading, .error {
+.loading,
+.error {
   text-align: center;
   font-size: 1.5rem;
   margin-top: 5rem;
@@ -189,7 +204,7 @@ button.active {
   gap: 1rem;
   cursor: pointer;
   transition: background 0.2s ease;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .search-result-item:last-child {
@@ -197,7 +212,7 @@ button.active {
 }
 
 .search-result-item:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .item-symbol {
@@ -231,7 +246,7 @@ button.active {
 }
 
 .large-chart {
-  height: 450px;
+  height: 220px;
 }
 
 .empty-state {
@@ -240,4 +255,80 @@ button.active {
   font-size: 1.2rem;
   margin-top: 4rem;
   opacity: 0.7;
+}
+
+/* AI Insight & Modal */
+.line-clamp-5 {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.read-more-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #8b5cf6 !important;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 !important;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+.read-more-btn:hover {
+  text-decoration: underline;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  color: #8b5cf6 !important;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: var(--glass-bg);
+  border: 1px solid #8b5cf6;
+  border-radius: var(--card-radius);
+  padding: 2rem;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #fff;
 }
