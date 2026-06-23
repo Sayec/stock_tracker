@@ -369,11 +369,11 @@ function App() {
                                 </div>
                             </div>
 
-                            <div style={{ minHeight: '450px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ height: '450px', display: 'flex', flexDirection: 'column' }}>
                                 {loadingTop ? (
                                     <div className="loading" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 0 }}>Skanowanie rynku w poszukiwaniu danych z dzisiaj...</div>
                                 ) : topStocks.length > 0 ? (
-                                    <div className="top-stocks-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', maxHeight: '50vh', overflowY: 'auto', paddingRight: '0.5rem', alignContent: 'start', flex: 1 }}>
+                                    <div className="top-stocks-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', overflowY: 'auto', paddingRight: '0.5rem', alignContent: 'start', flex: 1 }}>
                                         {topStocks.map((s: any) => (
                                             <div 
                                                 key={s.symbol} 
