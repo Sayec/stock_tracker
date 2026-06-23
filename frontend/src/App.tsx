@@ -98,16 +98,16 @@ function App() {
     return (
         <div className="layout-container">
             <div className="sidebar-controls">
-                <h1>Stock Tracker Pro</h1>
+                <h1>Stock Tracker</h1>
                 <p className="subtitle">Monitorowanie wskaźników i estymat analityków</p>
 
-                <SearchBar 
-                    companies={companies} 
-                    onSelectCompany={setSelectedSymbol} 
+                <SearchBar
+                    companies={companies}
+                    onSelectCompany={setSelectedSymbol}
                 />
 
-                <button 
-                    className="top-stocks-btn" 
+                <button
+                    className="top-stocks-btn"
                     onClick={() => setIsTopModalOpen(true)}
                     style={{ background: 'var(--accent)', color: '#000', marginBottom: '1.5rem', width: '100%', display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center', boxShadow: '0 0 15px var(--accent-glow)' }}
                 >
@@ -115,7 +115,7 @@ function App() {
                 </button>
 
                 {selectedSymbol && (
-                    <Sidebar 
+                    <Sidebar
                         selectedSymbol={selectedSymbol}
                         selectedCompany={selectedCompany}
                         latestData={latestData}
@@ -139,9 +139,9 @@ function App() {
                         {loadingData ? (
                             <div className="loading">Pobieranie danych z bazy...</div>
                         ) : (
-                            <MetricsChart 
-                                stockData={stockData} 
-                                activeMetrics={activeMetrics} 
+                            <MetricsChart
+                                stockData={stockData}
+                                activeMetrics={activeMetrics}
                             />
                         )}
                     </div>
@@ -169,10 +169,10 @@ function App() {
                 )}
 
                 {/* Zewnętrzny Komponent: Skaner (Modal) */}
-                <ScannerModal 
-                    isOpen={isTopModalOpen} 
-                    onClose={() => setIsTopModalOpen(false)} 
-                    onSelectCompany={setSelectedSymbol} 
+                <ScannerModal
+                    isOpen={isTopModalOpen}
+                    onClose={() => setIsTopModalOpen(false)}
+                    onSelectCompany={setSelectedSymbol}
                 />
             </div>
         </div>

@@ -71,7 +71,7 @@ export async function sendDailyDiscordReport() {
                     timestamp: new Date().toISOString(),
                     fields: fields,
                     footer: {
-                        text: "Stock Tracker Pro - Daily Report"
+                        text: "Stock Tracker - Daily Report"
                     }
                 }
             ]
