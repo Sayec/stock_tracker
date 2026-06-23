@@ -113,6 +113,33 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
     }
 });
 
+// 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
+app.get('/api/stocks/top', async (req, res) => {
+    try {
+        const upsideLimit = parseFloat(req.query.upside as string) || 0.35;
+        const cagrLimit = parseFloat(req.query.cagr as string) || 0.20;
+        const marketCapLimit = parseFloat(req.query.marketCap as string) || 10000000000;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const topStocks = await prisma.stockData.findMany({
+            where: {
+                date: { gte: today },
+                upside: { gte: upsideLimit },
+                cagr2YForward: { gte: cagrLimit },
+                marketCap: { gte: marketCapLimit }
+            },
+            orderBy: { upside: 'desc' }
+        });
+
+        res.json(topStocks);
+    } catch (error) {
+        console.error('Błąd pobierania topowych spółek:', error);
+        res.status(500).json({ error: 'Wewnętrzny błąd serwera przy pobieraniu top spółek' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`✅ Serwer API uruchomiony na porcie ${PORT}`);
 });
