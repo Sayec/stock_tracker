@@ -369,41 +369,43 @@ function App() {
                                 </div>
                             </div>
 
-                            {loadingTop ? (
-                                <div className="loading" style={{ marginTop: '2rem' }}>Skanowanie rynku w poszukiwaniu danych z dzisiaj...</div>
-                            ) : topStocks.length > 0 ? (
-                                <div className="top-stocks-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', maxHeight: '50vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                                    {topStocks.map((s: any) => (
-                                        <div 
-                                            key={s.symbol} 
-                                            className="card top-stock-card" 
-                                            style={{ cursor: 'pointer', padding: '1rem', transition: 'all 0.2s', minHeight: 'auto', background: 'rgba(30, 41, 59, 0.9)' }}
-                                            onClick={() => {
-                                                setSelectedSymbol(s.symbol);
-                                                setIsTopModalOpen(false);
-                                            }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--glass-border)'; }}
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
-                                                <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--accent)' }}>{s.symbol}</span>
-                                                <span style={{ color: '#10b981', fontWeight: 'bold' }}>${s.price.toFixed(2)}</span>
+                            <div style={{ minHeight: '450px', display: 'flex', flexDirection: 'column' }}>
+                                {loadingTop ? (
+                                    <div className="loading" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 0 }}>Skanowanie rynku w poszukiwaniu danych z dzisiaj...</div>
+                                ) : topStocks.length > 0 ? (
+                                    <div className="top-stocks-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', maxHeight: '50vh', overflowY: 'auto', paddingRight: '0.5rem', alignContent: 'start', flex: 1 }}>
+                                        {topStocks.map((s: any) => (
+                                            <div 
+                                                key={s.symbol} 
+                                                className="card top-stock-card" 
+                                                style={{ cursor: 'pointer', padding: '1rem', transition: 'all 0.2s', minHeight: 'auto', background: 'rgba(30, 41, 59, 0.9)' }}
+                                                onClick={() => {
+                                                    setSelectedSymbol(s.symbol);
+                                                    setIsTopModalOpen(false);
+                                                }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--glass-border)'; }}
+                                            >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                                                    <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--accent)' }}>{s.symbol}</span>
+                                                    <span style={{ color: '#10b981', fontWeight: 'bold' }}>${s.price.toFixed(2)}</span>
+                                                </div>
+                                                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>Upside:</span> <strong style={{ color: '#fff' }}>{(s.upside * 100).toFixed(1)}%</strong>
+                                                </div>
+                                                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>CAGR:</span> <strong style={{ color: '#fff' }}>{(s.cagr2YForward * 100).toFixed(1)}%</strong>
+                                                </div>
+                                                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>PSG:</span> <strong style={{ color: '#fff' }}>{s.psgRatio.toFixed(2)}</strong>
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>Upside:</span> <strong style={{ color: '#fff' }}>{(s.upside * 100).toFixed(1)}%</strong>
-                                            </div>
-                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>CAGR:</span> <strong style={{ color: '#fff' }}>{(s.cagr2YForward * 100).toFixed(1)}%</strong>
-                                            </div>
-                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                                                <span>PSG:</span> <strong style={{ color: '#fff' }}>{s.psgRatio.toFixed(2)}</strong>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="empty-state" style={{ marginTop: '2rem' }}>Brak spółek spełniających te kryteria w dzisiejszym zestawieniu.</div>
-                            )}
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="empty-state" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 0 }}>Brak spółek spełniających te kryteria w dzisiejszym zestawieniu.</div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
