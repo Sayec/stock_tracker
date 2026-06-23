@@ -99,9 +99,9 @@ function App() {
 
     const getMetricConfig = (metric: string) => {
         switch (metric) {
-            case 'upside': return { name: 'Analyst Upside (%)', color: '#10b981', domain: ['auto', 'auto'] };
-            case 'cagr2YForward': return { name: '2Y CAGR (%)', color: '#38bdf8', domain: ['auto', 'auto'] };
-            case 'psgRatio': return { name: 'PSG Ratio', color: '#f59e0b', domain: [0, 'auto'] };
+            case 'upside': return { name: 'Analyst Upside (%)', color: '#10b981', domain: [(min: number) => Math.floor(min - 10), (max: number) => Math.ceil(max + 10)] };
+            case 'cagr2YForward': return { name: '2Y CAGR (%)', color: '#38bdf8', domain: [(min: number) => Math.floor(min - 10), (max: number) => Math.ceil(max + 10)] };
+            case 'psgRatio': return { name: 'PSG Ratio', color: '#f59e0b', domain: [0, (max: number) => max + 0.5] };
             default: return { name: 'Value', color: '#fff', domain: ['auto', 'auto'] };
         }
     };
