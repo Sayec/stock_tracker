@@ -51,6 +51,10 @@ async function main() {
             // Zapisanie ipoDate jeśli jeszcze nie mamy (jednorazowa akcja dla każdej spółki)
             if (!companies[i].ipoDate) {
                 const profile = await getCompanyProfile(symbol);
+                
+                // Mamy ograniczenia w API, więc jeśli uderzyliśmy do endpointu profilu, musimy odczekać
+                await sleep(1000);
+
                 if (profile && profile.ipoDate) {
                     await prisma.company.update({
                         where: { symbol },
