@@ -133,7 +133,21 @@ app.get('/api/stocks/top', async (req, res) => {
             orderBy: { upside: 'desc' }
         });
 
-        res.json(topStocks);
+        const symbols = topStocks.map(s => s.symbol);
+        const companies = await prisma.company.findMany({
+            where: { symbol: { in: symbols } },
+            select: { symbol: true, ipoDate: true }
+        });
+
+        const merged = topStocks.map(stock => {
+            const company = companies.find(c => c.symbol === stock.symbol);
+            return {
+                ...stock,
+                ipoDate: company?.ipoDate || null
+            };
+        });
+
+        res.json(merged);
     } catch (error) {
         console.error('Błąd pobierania topowych spółek:', error);
         res.status(500).json({ error: 'Wewnętrzny błąd serwera przy pobieraniu top spółek' });

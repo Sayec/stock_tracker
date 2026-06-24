@@ -13,6 +13,7 @@ model Company {
   isActive      Boolean   @default(true)
   aiSummary     String?
   aiSummaryDate DateTime?
+  ipoDate       DateTime?
 }
 
 model StockData {

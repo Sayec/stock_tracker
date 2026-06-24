@@ -9,9 +9,10 @@ async function main() {
   
   // 1. Tworzymy kilka firm
   const companies = [
-    { symbol: 'MOCK1', name: 'Mock Super Tech', isActive: true },
-    { symbol: 'MOCK2', name: 'Mock Bio Pharma', isActive: true },
-    { symbol: 'MOCK3', name: 'Mock Stable Corp', isActive: true }
+    { symbol: 'MOCK1', name: 'Mock Super Tech', isActive: true, ipoDate: new Date('2010-01-15') },
+    { symbol: 'MOCK2', name: 'Mock Bio Pharma', isActive: true, ipoDate: new Date('2018-06-20') },
+    { symbol: 'MOCK3', name: 'Mock Stable Corp', isActive: true, ipoDate: new Date('2005-11-05') },
+    { symbol: 'SPCX', name: 'SpaceX New IPO', isActive: true, ipoDate: new Date(new Date().setDate(new Date().getDate() - 30)) },
   ];
 
   for (const c of companies) {
@@ -79,6 +80,24 @@ async function main() {
       psRatioForward: 8.0,
       psgRatio: 1.6,
       upside: 0.05 // 5% < 35%
+    }
+  });
+
+  // SPCX (świeże IPO)
+  await prisma.stockData.create({
+    data: {
+      symbol: 'SPCX',
+      date: today,
+      price: 80.50,
+      marketCap: 15000000000, 
+      revenueCurrent: 500000000,
+      revenueEstT0: 600000000,
+      revenueEstT2: 1000000000,
+      targetConsensus: 120.00,
+      cagr2YForward: 0.30, 
+      psRatioForward: 25.0,
+      psgRatio: 0.8,
+      upside: 0.49
     }
   });
 

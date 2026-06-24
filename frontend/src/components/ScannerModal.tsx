@@ -92,6 +92,21 @@ export const ScannerModal: React.FC<ScannerModalProps> = ({ isOpen, onClose, onS
                                     <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
                                         <span>PSG:</span> <strong style={{ color: '#fff' }}>{s.psgRatio.toFixed(2)}</strong>
                                     </div>
+                                    {s.ipoDate && (() => {
+                                        const ipo = new Date(s.ipoDate);
+                                        const now = new Date();
+                                        const diffMonths = (now.getFullYear() - ipo.getFullYear()) * 12 + (now.getMonth() - ipo.getMonth());
+                                        const isRecent = diffMonths < 6;
+                                        
+                                        return (
+                                            <div style={{ fontSize: '0.85rem', marginTop: '0.5rem', color: isRecent ? '#ef4444' : 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.5rem' }}>
+                                                <span>IPO:</span> 
+                                                <strong>
+                                                    {isRecent && '⚠️ '}{ipo.toISOString().split('T')[0]}
+                                                </strong>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             ))}
                         </div>
