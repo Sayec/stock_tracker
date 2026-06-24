@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { getQuote, getCurrentRevenue, getAnalystEstimates, getPriceTarget } from './apiClient';
+import { getQuote, getCurrentRevenue, getAnalystEstimates, getPriceTarget, getCompanyProfile } from './apiClient';
 import { calculateRevenue2YGrowth, calculatePSRatioForward, calculatePSG, calculateUpside } from './metrics';
 import { sendDailyDiscordReport } from './discordNotifier';
 
@@ -30,7 +30,7 @@ async function main() {
     // 1. Pobieramy wszystkie aktywne spółki z bazy
     const companies = await prisma.company.findMany({
         where: { isActive: true },
-        select: { symbol: true }
+        select: { symbol: true, ipoDate: true }
     });
 
     console.log(`Liczba aktywnych spółek w bazie do przetworzenia: ${companies.length}`);
@@ -45,25 +45,37 @@ async function main() {
     for (let i = 0; i < companies.length; i++) {
         const symbol = companies[i].symbol;
         
-        // 2. Sprawdzamy czy spółka była już dzisiaj zaktualizowana (RESUMABILITY)
-        const existingData = await prisma.stockData.findUnique({
-            where: {
-                symbol_date: {
-                    symbol: symbol,
-                    date: today
-                }
-            }
-        });
-
-        if (existingData) {
-            skippedCount++;
-            // Pomijamy bez sleepa, bo nie wysyłaliśmy zapytania do zewnętrznego API
-            continue;
-        }
-
         console.log(`\n--- Analiza dla: ${symbol} (${i + 1}/${companies.length}) ---`);
         
         try {
+            // Zapisanie ipoDate jeśli jeszcze nie mamy (jednorazowa akcja dla każdej spółki)
+            if (!companies[i].ipoDate) {
+                const profile = await getCompanyProfile(symbol);
+                if (profile && profile.ipoDate) {
+                    await prisma.company.update({
+                        where: { symbol },
+                        data: { ipoDate: new Date(profile.ipoDate) }
+                    });
+                    console.log(`[DB] Uzupełniono brakującą datę IPO dla ${symbol}: ${profile.ipoDate}`);
+                }
+            }
+
+            // 2. Sprawdzamy czy spółka była już dzisiaj zaktualizowana (RESUMABILITY)
+            const existingData = await prisma.stockData.findUnique({
+                where: {
+                    symbol_date: {
+                        symbol: symbol,
+                        date: today
+                    }
+                }
+            });
+
+            if (existingData) {
+                skippedCount++;
+                // Pomijamy bez sleepa, bo nie wysyłaliśmy zapytania do zewnętrznego API
+                continue;
+            }
+
             // 3. Pobieranie danych z API (4 requesty)
             const quote = await getQuote(symbol);
             if (!quote) {

@@ -101,3 +101,16 @@ export async function getPriceTarget(symbol: string): Promise<PriceTarget | null
   }
   return null;
 }
+
+export interface CompanyProfile {
+  symbol: string;
+  ipoDate: string;
+}
+
+export async function getCompanyProfile(symbol: string): Promise<CompanyProfile | null> {
+  const response = await axios.get(`${BASE_URL_STABLE}/profile?symbol=${symbol}&apikey=${API_KEY}`);
+  if (response.data && response.data.length > 0) {
+    return response.data[0];
+  }
+  return null;
+}
