@@ -1,5 +1,5 @@
 import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type StockData = {
     date: string;
@@ -12,6 +12,151 @@ type StockData = {
 type MetricsChartProps = {
     stockData: StockData[];
     activeMetrics: string[];
+};
+
+const ChartItem = ({ metric, config, stockData }: { metric: string, config: any, stockData: StockData[] }) => {
+    const crosshairRef = React.useRef<HTMLDivElement>(null);
+    const labelRef = React.useRef<HTMLDivElement>(null);
+    const chartState = React.useRef<{ p1: any; p2: any }>({ p1: null, p2: null });
+
+    const handleMouseMove = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (!crosshairRef.current || !labelRef.current) return;
+        
+        const rect = e.currentTarget.getBoundingClientRect();
+        const mouseY = e.clientY - rect.top;
+
+        const { p1, p2 } = chartState.current;
+        if (!p1) return;
+        
+        // Obliczenie granic osi Y (margines górny i orientacyjna oś X na dole)
+        const paddingTop = 10;
+        const paddingBottom = 30;
+        const chartHeight = rect.height - paddingTop - paddingBottom;
+        
+        if (mouseY < paddingTop || mouseY > paddingTop + chartHeight) {
+            crosshairRef.current.style.visibility = 'hidden';
+            return;
+        }
+
+        let value = p1.value;
+        if (p2 && p2.value !== p1.value) {
+            // Równanie prostej y = m * x + b
+            const m = (p2.cy - p1.cy) / (p2.value - p1.value);
+            const b = p1.cy - m * p1.value;
+            value = (mouseY - b) / m;
+        }
+
+        crosshairRef.current.style.visibility = 'visible';
+        crosshairRef.current.style.top = `${mouseY}px`;
+        crosshairRef.current.style.left = `0px`; 
+        crosshairRef.current.style.width = `${rect.width - 50}px`;
+
+        labelRef.current.textContent = Number(value).toFixed(2);
+    }, []);
+
+    const handleMouseLeave = React.useCallback(() => {
+        if (crosshairRef.current) {
+            crosshairRef.current.style.visibility = 'hidden';
+        }
+    }, []);
+
+    // Używamy kropek do wyciągnięcia mapowania pikseli względem wartości osi Y
+    const renderInvisibleDot = React.useCallback((props: any) => {
+        if (props.index === 0) {
+            chartState.current.p1 = props;
+        } else if (chartState.current.p1 && props.value !== chartState.current.p1.value) {
+            chartState.current.p2 = props;
+        }
+        return <g />;
+    }, []);
+
+    return (
+        <div className="card" style={{ flex: 1, padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div className="card-header" style={{ paddingBottom: '0.5rem', marginBottom: '0.5rem', justifyContent: 'center', borderBottom: 'none' }}>
+                <h3 style={{ margin: 0, fontSize: '0.95rem', color: config.color, fontWeight: 600 }}>{config.name}</h3>
+            </div>
+            
+            <div 
+                className="chart-container" 
+                style={{ flex: 1, minHeight: 0, marginTop: 0, position: 'relative' }}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+            >
+                <ResponsiveContainer width="100%" height="100%">
+                    {stockData.length > 0 ? (
+                        <LineChart data={stockData} margin={{ top: 10, right: 50, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                            
+                            <XAxis
+                                dataKey="date"
+                                stroke="#94a3b8"
+                                tick={{ fill: '#94a3b8', fontSize: 12 }}
+                                tickMargin={10}
+                            />
+                            
+                            <YAxis
+                                orientation="right"
+                                stroke="#94a3b8"
+                                tick={{ fill: '#94a3b8', fontSize: 12 }}
+                                domain={config.domain as any}
+                            />
+                            
+                            {/* Zostawiamy Tooltip tylko dla samej pionowej linii (cursor) */}
+                            <Tooltip
+                                content={() => null}
+                                cursor={{ stroke: 'rgba(255,255,255,0.6)', strokeWidth: 1.5, strokeDasharray: '4 4' }}
+                            />
+                            
+                            <Line
+                                type="linear"
+                                dataKey={metric}
+                                name={config.name}
+                                stroke={config.color}
+                                strokeWidth={2}
+                                activeDot={{ r: 5, strokeWidth: 0, fill: config.color }}
+                                dot={renderInvisibleDot}
+                            />
+                        </LineChart>
+                    ) : (
+                        <div className="empty-state" style={{ marginTop: "8rem" }}>
+                            Spółka nie ma jeszcze pobranych danych w bazie.
+                        </div>
+                    )}
+                </ResponsiveContainer>
+                
+                {/* Natywny, płynny celownik (poziomy crosshair z etykietą) */}
+                <div 
+                    ref={crosshairRef} 
+                    style={{ 
+                        position: 'absolute', 
+                        height: '0px', 
+                        borderTop: '1.5px dashed rgba(255,255,255,0.6)', 
+                        pointerEvents: 'none', 
+                        visibility: 'hidden', 
+                        zIndex: 100 
+                    }}
+                >
+                    <div 
+                        ref={labelRef} 
+                        style={{ 
+                            position: 'absolute', 
+                            right: '-50px', 
+                            top: '-10px', 
+                            width: '50px',
+                            background: config.color, 
+                            color: '#0f172a', 
+                            borderRadius: '4px', 
+                            fontSize: '11px', 
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            lineHeight: '20px'
+                        }}
+                    >
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export const MetricsChart: React.FC<MetricsChartProps> = ({ stockData, activeMetrics }) => {
@@ -32,80 +177,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ stockData, activeMet
         <div className="charts-list" style={{ width: '100%', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 6rem)', gap: '1rem' }}>
             {activeMetrics.map(metric => {
                 const config = getMetricConfig(metric);
-                return (
-                    <div key={metric} className="card" style={{ flex: 1, padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                        <div className="card-header" style={{ paddingBottom: '0.5rem', marginBottom: '0.5rem', justifyContent: 'center', borderBottom: 'none' }}>
-                            <h3 style={{ margin: 0, fontSize: '0.95rem', color: config.color, fontWeight: 600 }}>{config.name}</h3>
-                        </div>
-
-                        <div className="chart-container" style={{ flex: 1, minHeight: 0, marginTop: 0 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                {stockData.length > 0 ? (
-                                    <LineChart data={stockData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                                        <XAxis
-                                            dataKey="date"
-                                            stroke="#94a3b8"
-                                            tick={{ fill: '#94a3b8', fontSize: 12 }}
-                                            tickMargin={10}
-                                        />
-                                        <YAxis
-                                            orientation="right"
-                                            stroke="#94a3b8"
-                                            tick={{ fill: '#94a3b8', fontSize: 12 }}
-                                            domain={config.domain as any}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                                            itemStyle={{ color: '#fff', fontWeight: 'bold' }}
-                                            cursor={{ stroke: 'rgba(255,255,255,0.6)', strokeWidth: 1.5, strokeDasharray: '4 4' }}
-                                        />
-                                        <Line
-                                            type="linear"
-                                            dataKey={metric}
-                                            name={config.name}
-                                            stroke={config.color}
-                                            strokeWidth={2}
-                                            dot={false}
-                                            activeDot={(props: any) => {
-                                                const { cx, cy } = props;
-                                                return (
-                                                    <g>
-                                                        <circle cx={cx} cy={cy} r={5} fill={config.color} stroke="none" />
-                                                        <line x1={0} y1={cy} x2={2000} y2={cy} stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} strokeDasharray="4 4" />
-                                                    </g>
-                                                );
-                                            }}
-                                        >
-                                            <LabelList
-                                                dataKey={metric}
-                                                position="right"
-                                                content={(props: any) => {
-                                                    const { x, y, value, index } = props;
-                                                    if (index === stockData.length - 1) {
-                                                        return (
-                                                            <g transform={`translate(${x},${y})`}>
-                                                                <rect x={5} y={-10} width={40} height={20} fill={config.color} rx={4} />
-                                                                <text x={25} y={4} fill="#0f172a" fontSize={11} fontWeight="bold" textAnchor="middle">
-                                                                    {Number(value).toFixed(2)}
-                                                                </text>
-                                                            </g>
-                                                        );
-                                                    }
-                                                    return null;
-                                                }}
-                                            />
-                                        </Line>
-                                    </LineChart>
-                                ) : (
-                                    <div className="empty-state" style={{ marginTop: "8rem" }}>
-                                        Spółka nie ma jeszcze pobranych danych w bazie.
-                                    </div>
-                                )}
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                );
+                return <ChartItem key={metric} metric={metric} config={config} stockData={stockData} />;
             })}
         </div>
     );
