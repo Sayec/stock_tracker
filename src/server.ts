@@ -120,12 +120,21 @@ app.get('/api/stocks/top', async (req, res) => {
         const cagrLimit = parseFloat(req.query.cagr as string) || 0.20;
         const marketCapLimit = parseFloat(req.query.marketCap as string) || 10000000000;
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const latestRecord = await prisma.stockData.findFirst({
+            orderBy: { date: 'desc' },
+            select: { date: true }
+        });
+
+        if (!latestRecord) {
+            return res.json([]);
+        }
+
+        const targetDate = new Date(latestRecord.date);
+        targetDate.setHours(0, 0, 0, 0);
 
         const topStocks = await prisma.stockData.findMany({
             where: {
-                date: { gte: today },
+                date: { gte: targetDate },
                 upside: { gte: upsideLimit },
                 cagr2YForward: { gte: cagrLimit },
                 marketCap: { gte: marketCapLimit }
