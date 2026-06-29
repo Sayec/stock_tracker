@@ -1,5 +1,5 @@
 import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 type StockData = {
     date: string;
@@ -41,7 +41,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ stockData, activeMet
                         <div className="chart-container" style={{ flex: 1, minHeight: 0, marginTop: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 {stockData.length > 0 ? (
-                                    <LineChart data={stockData}>
+                                    <LineChart data={stockData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
                                         <XAxis
                                             dataKey="date"
@@ -50,6 +50,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ stockData, activeMet
                                             tickMargin={10}
                                         />
                                         <YAxis
+                                            orientation="right"
                                             stroke="#94a3b8"
                                             tick={{ fill: '#94a3b8', fontSize: 12 }}
                                             domain={config.domain as any}
@@ -57,16 +58,44 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ stockData, activeMet
                                         <Tooltip
                                             contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
                                             itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                                            cursor={{ stroke: 'rgba(255,255,255,0.6)', strokeWidth: 1.5, strokeDasharray: '4 4' }}
                                         />
                                         <Line
-                                            type="monotone"
+                                            type="linear"
                                             dataKey={metric}
                                             name={config.name}
                                             stroke={config.color}
-                                            strokeWidth={3}
-                                            dot={{ r: 4, fill: '#0f172a', strokeWidth: 2, stroke: config.color }}
-                                            activeDot={{ r: 4, strokeWidth: 0, fill: config.color }}
-                                        />
+                                            strokeWidth={2}
+                                            dot={false}
+                                            activeDot={(props: any) => {
+                                                const { cx, cy } = props;
+                                                return (
+                                                    <g>
+                                                        <circle cx={cx} cy={cy} r={5} fill={config.color} stroke="none" />
+                                                        <line x1={0} y1={cy} x2={2000} y2={cy} stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} strokeDasharray="4 4" />
+                                                    </g>
+                                                );
+                                            }}
+                                        >
+                                            <LabelList
+                                                dataKey={metric}
+                                                position="right"
+                                                content={(props: any) => {
+                                                    const { x, y, value, index } = props;
+                                                    if (index === stockData.length - 1) {
+                                                        return (
+                                                            <g transform={`translate(${x},${y})`}>
+                                                                <rect x={5} y={-10} width={40} height={20} fill={config.color} rx={4} />
+                                                                <text x={25} y={4} fill="#0f172a" fontSize={11} fontWeight="bold" textAnchor="middle">
+                                                                    {Number(value).toFixed(2)}
+                                                                </text>
+                                                            </g>
+                                                        );
+                                                    }
+                                                    return null;
+                                                }}
+                                            />
+                                        </Line>
                                     </LineChart>
                                 ) : (
                                     <div className="empty-state" style={{ marginTop: "8rem" }}>

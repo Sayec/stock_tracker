@@ -49,14 +49,26 @@ app.get('/api/stocks', async (req, res) => {
             orderBy: { date: 'asc' }
         });
 
-        // Formatowanie pod wykres
-        const formatted = data.map(curr => ({
-            date: curr.date.toISOString().split('T')[0],
-            price: curr.price,
-            cagr2YForward: parseFloat((curr.cagr2YForward * 100).toFixed(2)),
-            psgRatio: parseFloat(curr.psgRatio.toFixed(2)),
-            upside: parseFloat((curr.upside * 100).toFixed(2)),
-        }));
+        // Formatowanie pod wykres (z uwzględnieniem strefy czasowej)
+        const rawFormatted = data.map(curr => {
+            // Korekta o strefę czasową, by toISOString() nie ucinało dat na poprzedni dzień (UTC)
+            const localDate = new Date(curr.date.getTime() - (curr.date.getTimezoneOffset() * 60000));
+            return {
+                date: localDate.toISOString().split('T')[0],
+                price: curr.price,
+                cagr2YForward: parseFloat((curr.cagr2YForward * 100).toFixed(2)),
+                psgRatio: parseFloat(curr.psgRatio.toFixed(2)),
+                upside: parseFloat((curr.upside * 100).toFixed(2)),
+            };
+        });
+
+        // Deduplikacja po dacie (jeśli byłyby 2 wyniki z tego samego dnia, bierzemy najnowszy)
+        const formatted = Object.values(
+            rawFormatted.reduce((acc, curr) => {
+                acc[curr.date] = curr;
+                return acc;
+            }, {} as Record<string, typeof rawFormatted[0]>)
+        );
 
         res.json(formatted);
     } catch (error) {
