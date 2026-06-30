@@ -128,9 +128,9 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
 // 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
 app.get('/api/stocks/top', async (req, res) => {
     try {
-        const upsideLimit = parseFloat(req.query.upside as string) || 0.35;
-        const cagrLimit = parseFloat(req.query.cagr as string) || 0.20;
-        const marketCapLimit = parseFloat(req.query.marketCap as string) || 10000000000;
+        const upsideLimit = req.query.upside !== undefined ? parseFloat(req.query.upside as string) : 0.35;
+        const cagrLimit = req.query.cagr !== undefined ? parseFloat(req.query.cagr as string) : 0.20;
+        const marketCapLimit = req.query.marketCap !== undefined ? parseFloat(req.query.marketCap as string) : 10000000000;
 
         const latestRecord = await prisma.stockData.findFirst({
             orderBy: { date: 'desc' },

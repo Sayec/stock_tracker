@@ -1,20 +1,16 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-type StockData = {
-    date: string;
-    price: number;
-    cagr2YForward: number;
-    psgRatio: number;
-    upside: number;
-};
-
 type MetricsChartProps = {
-    stockData: StockData[];
+    data: any[];
+    selectedSymbols: string[];
     activeMetrics: string[];
 };
 
-const ChartItem = ({ metric, config, stockData }: { metric: string, config: any, stockData: StockData[] }) => {
+// Paleta kolorów dla poszczególnych spółek na wykresie
+const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
+
+const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, config: any, data: any[], selectedSymbols: string[] }) => {
     const crosshairRef = React.useRef<HTMLDivElement>(null);
     const labelRef = React.useRef<HTMLDivElement>(null);
     const chartState = React.useRef<{ p1: any; p2: any }>({ p1: null, p2: null });
@@ -60,20 +56,35 @@ const ChartItem = ({ metric, config, stockData }: { metric: string, config: any,
         }
     }, []);
 
-    // Używamy kropek do wyciągnięcia mapowania pikseli względem wartości osi Y
+    // Używamy kropek do wyciągnięcia mapowania pikseli względem wartości osi Y.
+    // Pobieramy punkty TYLKO dla pierwszej spółki, żeby nie mieszać współrzędnych z wielu linii.
     const renderInvisibleDot = React.useCallback((props: any) => {
-        if (props.index === 0) {
-            chartState.current.p1 = props;
-        } else if (chartState.current.p1 && props.value !== chartState.current.p1.value) {
-            chartState.current.p2 = props;
+        const firstSymbolKey = `${selectedSymbols[0]}_${metric}`;
+        
+        if (props.dataKey === firstSymbolKey) {
+            if (props.index === 0) {
+                chartState.current.p1 = props;
+            } else if (chartState.current.p1 && props.value !== chartState.current.p1.value) {
+                chartState.current.p2 = props;
+            }
         }
         return <g />;
-    }, []);
+    }, [metric, selectedSymbols]);
 
     return (
         <div className="card" style={{ flex: 1, padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div className="card-header" style={{ paddingBottom: '0.5rem', marginBottom: '0.5rem', justifyContent: 'center', borderBottom: 'none' }}>
+            <div className="card-header" style={{ paddingBottom: '0.5rem', marginBottom: '0.5rem', justifyContent: 'space-between', borderBottom: 'none' }}>
                 <h3 style={{ margin: 0, fontSize: '0.95rem', color: config.color, fontWeight: 600 }}>{config.name}</h3>
+                
+                {/* Legenda dla spółek */}
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    {selectedSymbols.map((symbol, idx) => (
+                        <div key={symbol} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[idx % COLORS.length] }} />
+                            <span style={{ color: 'var(--text-main)' }}>{symbol}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
             
             <div 
@@ -83,8 +94,8 @@ const ChartItem = ({ metric, config, stockData }: { metric: string, config: any,
                 onMouseLeave={handleMouseLeave}
             >
                 <ResponsiveContainer width="100%" height="100%">
-                    {stockData.length > 0 ? (
-                        <LineChart data={stockData} margin={{ top: 10, right: 50, left: 0, bottom: 0 }}>
+                    {data.length > 0 ? (
+                        <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
                             
                             <XAxis
@@ -92,6 +103,7 @@ const ChartItem = ({ metric, config, stockData }: { metric: string, config: any,
                                 stroke="#94a3b8"
                                 tick={{ fill: '#94a3b8', fontSize: 12 }}
                                 tickMargin={10}
+                                padding={{ left: 10, right: 10 }}
                             />
                             
                             <YAxis
@@ -107,19 +119,23 @@ const ChartItem = ({ metric, config, stockData }: { metric: string, config: any,
                                 cursor={{ stroke: 'rgba(255,255,255,0.6)', strokeWidth: 1.5, strokeDasharray: '4 4' }}
                             />
                             
-                            <Line
-                                type="linear"
-                                dataKey={metric}
-                                name={config.name}
-                                stroke={config.color}
-                                strokeWidth={2}
-                                activeDot={{ r: 5, strokeWidth: 0, fill: config.color }}
-                                dot={renderInvisibleDot}
-                            />
+                            {selectedSymbols.map((symbol, idx) => (
+                                <Line
+                                    key={symbol}
+                                    type="linear"
+                                    dataKey={`${symbol}_${metric}`}
+                                    name={symbol}
+                                    stroke={COLORS[idx % COLORS.length]}
+                                    strokeWidth={2}
+                                    activeDot={{ r: 5, strokeWidth: 0, fill: COLORS[idx % COLORS.length] }}
+                                    dot={renderInvisibleDot}
+                                    connectNulls={true}
+                                />
+                            ))}
                         </LineChart>
                     ) : (
                         <div className="empty-state" style={{ marginTop: "8rem" }}>
-                            Spółka nie ma jeszcze pobranych danych w bazie.
+                            Brak danych dla wybranych spółek.
                         </div>
                     )}
                 </ResponsiveContainer>
@@ -159,7 +175,7 @@ const ChartItem = ({ metric, config, stockData }: { metric: string, config: any,
     );
 };
 
-export const MetricsChart: React.FC<MetricsChartProps> = ({ stockData, activeMetrics }) => {
+export const MetricsChart: React.FC<MetricsChartProps> = ({ data, selectedSymbols, activeMetrics }) => {
     const getMetricConfig = (metric: string) => {
         switch (metric) {
             case 'upside': return { name: 'Analyst Upside (%)', color: '#10b981', domain: [(min: number) => Math.floor(min - 10), (max: number) => Math.ceil(max + 10)] };
@@ -177,7 +193,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ stockData, activeMet
         <div className="charts-list" style={{ width: '100%', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 6rem)', gap: '1rem' }}>
             {activeMetrics.map(metric => {
                 const config = getMetricConfig(metric);
-                return <ChartItem key={metric} metric={metric} config={config} stockData={stockData} />;
+                return <ChartItem key={metric} metric={metric} config={config} data={data} selectedSymbols={selectedSymbols} />;
             })}
         </div>
     );

@@ -26,7 +26,7 @@ h1 {
 
 .dashboard {
   width: 100%;
-  max-width: 1200px;
+  max-width: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: 2rem;
@@ -36,8 +36,8 @@ h1 {
   display: flex;
   gap: 2rem;
   align-items: flex-start;
-  width: 95%;
-  max-width: 1600px;
+  width: 98%;
+  max-width: 2400px;
 }
 
 .sidebar-controls {
