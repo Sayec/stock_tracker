@@ -26,6 +26,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="company-info-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div className="metrics-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <button
+                    className={activeMetrics.includes('price') ? 'active' : ''}
+                    onClick={() => toggleMetric('price')}
+                >
+                    Cena
+                </button>
+                <button
                     className={activeMetrics.includes('upside') ? 'active' : ''}
                     onClick={() => toggleMetric('upside')}
                 >

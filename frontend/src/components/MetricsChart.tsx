@@ -178,6 +178,7 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
 export const MetricsChart: React.FC<MetricsChartProps> = ({ data, selectedSymbols, activeMetrics }) => {
     const getMetricConfig = (metric: string) => {
         switch (metric) {
+            case 'price': return { name: 'Cena ($)', color: '#ec4899', domain: ['auto', 'auto'] };
             case 'upside': return { name: 'Analyst Upside (%)', color: '#10b981', domain: [(min: number) => Math.floor(min - 10), (max: number) => Math.ceil(max + 10)] };
             case 'cagr2YForward': return { name: '2Y CAGR (%)', color: '#38bdf8', domain: [(min: number) => Math.floor(min - 10), (max: number) => Math.ceil(max + 10)] };
             case 'psgRatio': return { name: 'PSG Ratio', color: '#f59e0b', domain: [0, (max: number) => max + 0.5] };

@@ -22,7 +22,7 @@ function App() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
     const [stockDataMap, setStockDataMap] = useState<Record<string, StockData[]>>({});
-    
+
     const [loadingCompanies, setLoadingCompanies] = useState(true);
     const [loadingData, setLoadingData] = useState(false);
     const [loadingSummary, setLoadingSummary] = useState(false);
@@ -43,9 +43,9 @@ function App() {
     };
 
     const handleSelectSymbol = (symbol: string) => {
-        setSelectedSymbols(prev => 
-            prev.includes(symbol) 
-                ? prev.filter(s => s !== symbol) 
+        setSelectedSymbols(prev =>
+            prev.includes(symbol)
+                ? prev.filter(s => s !== symbol)
                 : [...prev, symbol]
         );
     };
@@ -80,10 +80,10 @@ function App() {
             try {
                 // Filtrujemy te symbole, których jeszcze nie mamy w state (cache)
                 const missingSymbols = selectedSymbols.filter(s => !stockDataMap[s]);
-                
+
                 if (missingSymbols.length > 0) {
                     const newDataMap = { ...stockDataMap };
-                    
+
                     await Promise.all(missingSymbols.map(async (symbol) => {
                         const res = await fetch(`/api/stocks?symbol=${symbol}`);
                         if (res.ok) {
@@ -105,7 +105,7 @@ function App() {
     const handleOpenInsightModal = async (stock: any) => {
         setInsightStock(stock);
         setIsInsightModalOpen(true);
-        
+
         if (!aiSummaryMap[stock.symbol]) {
             setLoadingSummary(true);
             try {
@@ -154,10 +154,10 @@ function App() {
                     <button
                         className="top-stocks-btn"
                         onClick={() => setViewMode('screener')}
-                        style={{ 
-                            flex: 1, 
-                            background: viewMode === 'screener' ? 'var(--accent)' : 'rgba(255,255,255,0.05)', 
-                            color: viewMode === 'screener' ? '#000' : '#fff', 
+                        style={{
+                            flex: 1,
+                            background: viewMode === 'screener' ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                            color: viewMode === 'screener' ? '#000' : '#fff',
                             display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center',
                             boxShadow: viewMode === 'screener' ? '0 0 15px var(--accent-glow)' : 'none'
                         }}
@@ -167,10 +167,10 @@ function App() {
                     <button
                         className="top-stocks-btn"
                         onClick={() => setViewMode('chart')}
-                        style={{ 
-                            flex: 1, 
-                            background: viewMode === 'chart' ? 'var(--accent)' : 'rgba(255,255,255,0.05)', 
-                            color: viewMode === 'chart' ? '#000' : '#fff', 
+                        style={{
+                            flex: 1,
+                            background: viewMode === 'chart' ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                            color: viewMode === 'chart' ? '#000' : '#fff',
                             display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center',
                             boxShadow: viewMode === 'chart' ? '0 0 15px var(--accent-glow)' : 'none'
                         }}
@@ -235,7 +235,7 @@ function App() {
                             <h2 style={{ color: '#8b5cf6', marginTop: 0, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 ✨ Raport Spółki: {insightStock.symbol}
                             </h2>
-                            
+
                             {insightStock.price !== undefined && (
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
                                     <div>
