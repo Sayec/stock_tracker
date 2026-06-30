@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 type ScreenerProps = {
-    onSelectCompany: (symbol: string) => void;
+    onToggleChart: (symbol: string) => void;
+    onOpenInsight: (stock: any) => void;
     selectedSymbols: string[];
 };
 
 type SortKey = 'symbol' | 'price' | 'upside' | 'cagr2YForward' | 'psgRatio' | 'ipoDate';
 
-export const StockScreener: React.FC<ScreenerProps> = ({ onSelectCompany, selectedSymbols }) => {
+export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenInsight, selectedSymbols }) => {
     const [stocks, setStocks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortKey, setSortKey] = useState<SortKey>('upside');
@@ -21,7 +22,7 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onSelectCompany, select
         const fetchStocks = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`/api/stocks/top?upside=${filterUpside/100}&cagr=${filterCagr/100}&marketCap=${filterCap * 1000000000}`);
+                const response = await fetch(`/api/stocks/top?upside=${filterUpside / 100}&cagr=${filterCagr / 100}&marketCap=${filterCap * 1000000000}`);
                 if (!response.ok) throw new Error('Błąd pobierania spółek');
                 const result = await response.json();
                 setStocks(result);
@@ -72,9 +73,9 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onSelectCompany, select
                     📊 Pełny Skaner Rynku
                 </h2>
                 <p style={{ margin: '0.5rem 0 1.5rem 0', color: 'var(--text-muted)' }}>
-                    Przeglądaj, filtruj i sortuj wszystkie śledzone spółki. Kliknij w spółkę, aby dodać ją do wykresu.
+                    Kliknij w wiersz, aby zobaczyć opis AI i wskaźniki. Użyj przycisku po prawej, aby dodać spółkę do wykresu.
                 </p>
-                
+
                 <div className="scanner-filters" style={{ display: 'flex', gap: '2rem', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px' }}>
                     <div className="filter-group" style={{ flex: 1 }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Min. Upside: <strong style={{ color: '#fff' }}>{filterUpside}%</strong></label>
@@ -90,7 +91,7 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onSelectCompany, select
                     </div>
                 </div>
             </div>
-            
+
             <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
                 {loading && (
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.5)', zIndex: 20, display: 'flex', justifyContent: 'center', paddingTop: '5rem', backdropFilter: 'blur(2px)' }}>
@@ -123,36 +124,57 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onSelectCompany, select
                     <tbody>
                         {sortedStocks.map((stock, idx) => {
                             const isSelected = selectedSymbols.includes(stock.symbol);
-                            
+
                             return (
-                                <tr 
-                                    key={stock.symbol} 
-                                    style={{ 
-                                        borderBottom: '1px solid rgba(255,255,255,0.05)', 
+                                <tr
+                                    key={stock.symbol}
+                                    style={{
+                                        borderBottom: '1px solid rgba(255,255,255,0.05)',
                                         background: isSelected ? 'rgba(16, 185, 129, 0.05)' : (idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'),
                                         cursor: 'pointer',
-                                        transition: 'background 0.2s',
-                                        opacity: isSelected ? 0.6 : 1
+                                        transition: 'background 0.2s'
                                     }}
-                                    onClick={() => onSelectCompany(stock.symbol)}
+                                    onClick={() => onOpenInsight(stock)}
                                     onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)')}
                                     onMouseLeave={(e) => (e.currentTarget.style.background = isSelected ? 'rgba(16, 185, 129, 0.05)' : (idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'))}
                                 >
                                     <td style={{ padding: '1rem', fontWeight: 'bold', color: isSelected ? '#10b981' : 'var(--accent)' }}>
-                                        {stock.symbol} {isSelected && '✓'}
+                                        {stock.symbol}
                                     </td>
                                     <td style={{ padding: '1rem', textAlign: 'right', color: '#10b981' }}>${stock.price?.toFixed(2)}</td>
                                     <td style={{ padding: '1rem', textAlign: 'right' }}>{(stock.upside * 100).toFixed(1)}%</td>
                                     <td style={{ padding: '1rem', textAlign: 'right' }}>{(stock.cagr2YForward * 100).toFixed(1)}%</td>
                                     <td style={{ padding: '1rem', textAlign: 'right' }}>{stock.psgRatio?.toFixed(2)}</td>
-                                    <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>{stock.ipoDate ? stock.ipoDate.split('T')[0] : 'Brak'}</td>
+                                    <td style={{ padding: '1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span>{stock.ipoDate ? stock.ipoDate.split('T')[0] : 'Brak'}</span>
+                                        <button
+                                            style={{
+                                                background: isSelected ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                                                color: isSelected ? '#ef4444' : '#10b981',
+                                                border: `1px solid ${isSelected ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                                                padding: '4px 12px',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 'bold',
+                                                minWidth: '80px',
+                                                textAlign: 'center'
+                                            }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onToggleChart(stock.symbol);
+                                            }}
+                                        >
+                                            {isSelected ? 'Usuń' : '+ Wykres'}
+                                        </button>
+                                    </td>
                                 </tr>
                             );
                         })}
                     </tbody>
                 </table>
                 {sortedStocks.length === 0 && !loading && (
-                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Brak danych do wyświetlenia.</div>
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Brak spółek spełniających wybrane kryteria.</div>
                 )}
             </div>
         </div>

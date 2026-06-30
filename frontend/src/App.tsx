@@ -29,7 +29,7 @@ function App() {
     const [error, setError] = useState<string | null>(null);
     const [activeMetrics, setActiveMetrics] = useState<string[]>(['upside']);
     const [isInsightModalOpen, setIsInsightModalOpen] = useState(false);
-    const [insightSymbol, setInsightSymbol] = useState<string | null>(null);
+    const [insightStock, setInsightStock] = useState<any | null>(null);
     const [aiSummaryMap, setAiSummaryMap] = useState<Record<string, string>>({});
 
     const [viewMode, setViewMode] = useState<'chart' | 'screener'>('screener');
@@ -102,17 +102,17 @@ function App() {
         fetchData();
     }, [selectedSymbols]);
 
-    const handleOpenInsightModal = async (symbol: string) => {
-        setInsightSymbol(symbol);
+    const handleOpenInsightModal = async (stock: any) => {
+        setInsightStock(stock);
         setIsInsightModalOpen(true);
         
-        if (!aiSummaryMap[symbol]) {
+        if (!aiSummaryMap[stock.symbol]) {
             setLoadingSummary(true);
             try {
-                const res = await fetch(`/api/companies/${symbol}/summary`);
+                const res = await fetch(`/api/companies/${stock.symbol}/summary`);
                 if (res.ok) {
                     const data = await res.json();
-                    setAiSummaryMap(prev => ({ ...prev, [symbol]: data.aiSummary }));
+                    setAiSummaryMap(prev => ({ ...prev, [stock.symbol]: data.aiSummary }));
                 }
             } catch (e) {
                 console.error("AI Insight error", e);
@@ -186,7 +186,11 @@ function App() {
                         activeMetrics={activeMetrics}
                         toggleMetric={toggleMetric}
                         onRemoveSymbol={handleRemoveSymbol}
-                        onOpenInsightModal={handleOpenInsightModal}
+                        onOpenInsightModal={(symbol) => {
+                            const comp = companies.find(c => c.symbol === symbol);
+                            // Fallback minimalny, jeżeli wywoływane z sidebara, lepiej otworzyć pusty modal z samym summary
+                            handleOpenInsightModal({ symbol: symbol, name: comp?.name });
+                        }}
                     />
                 )}
             </div>
@@ -197,7 +201,7 @@ function App() {
 
                 {/* Kontener Skanera */}
                 <div style={{ display: viewMode === 'screener' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                    <StockScreener onSelectCompany={handleSelectSymbol} selectedSymbols={selectedSymbols} />
+                    <StockScreener onToggleChart={handleSelectSymbol} onOpenInsight={handleOpenInsightModal} selectedSymbols={selectedSymbols} />
                 </div>
 
                 {/* Kontener Wykresów */}
@@ -223,19 +227,41 @@ function App() {
                     )}
                 </div>
 
-                {/* Modal AI Insight */}
-                {isInsightModalOpen && insightSymbol && (
+                {/* Modal AI Insight i Informacje */}
+                {isInsightModalOpen && insightStock && (
                     <div className="modal-overlay" onClick={() => setIsInsightModalOpen(false)}>
-                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
                             <button className="modal-close" onClick={() => setIsInsightModalOpen(false)}>×</button>
                             <h2 style={{ color: '#8b5cf6', marginTop: 0, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                ✨ Pełna Analiza AI ({insightSymbol})
+                                ✨ Raport Spółki: {insightStock.symbol}
                             </h2>
+                            
+                            {insightStock.price !== undefined && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cena</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#10b981' }}>${insightStock.price?.toFixed(2)}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Upside</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{(insightStock.upside * 100).toFixed(1)}%</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>CAGR 2Y</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{(insightStock.cagr2YForward * 100).toFixed(1)}%</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>PSG</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{insightStock.psgRatio?.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                            )}
+
                             {loadingSummary ? (
                                 <div className="loading">Trwa odpytywanie Gemini...</div>
                             ) : (
                                 <div style={{ color: 'var(--text-main)', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontSize: '1.05rem' }}>
-                                    {aiSummaryMap[insightSymbol] || 'Brak podsumowania.'}
+                                    {aiSummaryMap[insightStock.symbol] || 'Brak podsumowania dla tej spółki.'}
                                 </div>
                             )}
                         </div>
