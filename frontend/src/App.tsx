@@ -195,11 +195,15 @@ function App() {
                 {loadingCompanies && <div className="loading">Wczytywanie bazy spółek...</div>}
                 {error && <div className="error">Błąd: {error}</div>}
 
-                {viewMode === 'screener' ? (
+                {/* Kontener Skanera */}
+                <div style={{ display: viewMode === 'screener' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                     <StockScreener onSelectCompany={handleSelectSymbol} selectedSymbols={selectedSymbols} />
-                ) : (
-                    selectedSymbols.length > 0 ? (
-                        <div className="dashboard single-dashboard">
+                </div>
+
+                {/* Kontener Wykresów */}
+                <div style={{ display: viewMode === 'chart' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                    {selectedSymbols.length > 0 ? (
+                        <div className="dashboard single-dashboard" style={{ flex: 1 }}>
                             {loadingData ? (
                                 <div className="loading">Pobieranie danych giełdowych...</div>
                             ) : (
@@ -216,8 +220,8 @@ function App() {
                                 Wyszukaj i dodaj spółki z panelu bocznego lub kliknij spółkę w Skanerze, aby zobaczyć i porównać profesjonalne wykresy.
                             </div>
                         )
-                    )
-                )}
+                    )}
+                </div>
 
                 {/* Modal AI Insight */}
                 {isInsightModalOpen && insightSymbol && (
