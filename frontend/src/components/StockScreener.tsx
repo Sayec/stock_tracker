@@ -15,7 +15,7 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onSelectCompany, select
 
     const [filterUpside, setFilterUpside] = useState(0);
     const [filterCagr, setFilterCagr] = useState(0);
-    const [filterCap, setFilterCap] = useState(0);
+    const [filterCap, setFilterCap] = useState(10);
 
     useEffect(() => {
         const fetchStocks = async () => {
