@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 type ScreenerProps = {
     onToggleChart: (symbol: string) => void;
-    onOpenInsight: (stock: any) => void;
+    onOpenInsight: (symbol: string) => void;
     selectedSymbols: string[];
 };
 
@@ -22,7 +22,7 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
         const fetchStocks = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`/api/stocks/top?upside=${filterUpside / 100}&cagr=${filterCagr / 100}&marketCap=${filterCap * 1000000000}`);
+                const response = await fetch(`/api/stocks/top?upside=${filterUpside/100}&cagr=${filterCagr/100}&marketCap=${filterCap * 1000000000}`);
                 if (!response.ok) throw new Error('Błąd pobierania spółek');
                 const result = await response.json();
                 setStocks(result);
@@ -134,7 +134,7 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
                                         cursor: 'pointer',
                                         transition: 'background 0.2s'
                                     }}
-                                    onClick={() => onOpenInsight(stock)}
+                                    onClick={() => onOpenInsight(stock.symbol)}
                                     onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)')}
                                     onMouseLeave={(e) => (e.currentTarget.style.background = isSelected ? 'rgba(16, 185, 129, 0.05)' : (idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'))}
                                 >
