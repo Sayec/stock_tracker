@@ -94,11 +94,11 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                         </div>
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Upside</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{(metrics.upside * 100).toFixed(1)}%</div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{metrics.upside?.toFixed(1)}%</div>
                         </div>
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>CAGR 2Y</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{(metrics.cagr2YForward * 100).toFixed(1)}%</div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{metrics.cagr2YForward?.toFixed(1)}%</div>
                         </div>
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>PSG</div>
