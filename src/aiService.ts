@@ -44,3 +44,47 @@ Zasady, których absolutnie musisz przestrzegać:
         throw error;
     }
 }
+
+export async function generatePortfolioSummary(symbols: string[], metrics: any[]): Promise<string> {
+    if (!apiKey) {
+        throw new Error('Brak klucza API Gemini. Upewnij się, że masz GEMINI_API_KEY w pliku .env');
+    }
+
+    if (!symbols || symbols.length === 0) {
+        return "Brak obserwowanych spółek do podsumowania.";
+    }
+
+    let metricsText = '';
+    metrics.forEach(m => {
+        metricsText += `Spółka: ${m.symbol}, Cena: $${m.price}, Upside: ${(m.upside * 100).toFixed(2)}%, CAGR: ${(m.cagr2YForward * 100).toFixed(2)}%\n`;
+    });
+
+    const prompt = `Jesteś analitykiem giełdowym na Wall Street, a ja jestem Twoim klientem. 
+Oto moje obserwowane spółki i ich aktualne parametry giełdowe z dzisiaj:
+${metricsText}
+
+Twoim zadaniem jest napisać dla mnie "Tygodniowy Raport Obserwowanych Spółek".
+Użyj wyszukiwarki (Google Search), aby znaleźć najświeższe wiadomości (nowe kontrakty, produkty, sprawozdania finansowe, skandale, itp.) z OSTATNICH 7 DNI dla tych spółek.
+
+Zasady, których absolutnie musisz przestrzegać:
+1. ODPOWIADAJ WYŁĄCZNIE W JĘZYKU POLSKIM.
+2. Napisz krótki wstęp analityka.
+3. Dla każdej spółki poświęć osobny akapit: powiąż ewentualne świeże wiadomości z internetu z jej aktualnymi wskaźnikami (np. Upside). Użyj punktów (bullet points), pogrubiając najważniejsze rzeczy.
+4. Zignoruj spółki, dla których nie wydarzyło się w tym tygodniu nic ciekawego (wymień je tylko na końcu z dopiskiem "Brak większych newsów").
+5. Formatuj tekst ładnie w Markdownie, używając nagłówków (##).`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3.1-pro',
+            contents: prompt,
+            config: {
+                tools: [{ googleSearch: {} }]
+            }
+        });
+
+        return response.text || 'Brak wygenerowanego podsumowania.';
+    } catch (error) {
+        console.error('Błąd podczas generowania raportu portfolio:', error);
+        throw error;
+    }
+}

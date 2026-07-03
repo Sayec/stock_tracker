@@ -6,6 +6,8 @@ type CompanyModalProps = {
     onClose: () => void;
     onToggleChart: () => void;
     onGoToChart: () => void;
+    isWatched: boolean;
+    onToggleWatch: () => void;
 };
 
 export const CompanyModal: React.FC<CompanyModalProps> = ({ 
@@ -13,7 +15,9 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
     isSelected, 
     onClose, 
     onToggleChart, 
-    onGoToChart 
+    onGoToChart,
+    isWatched,
+    onToggleWatch
 }) => {
     const [loadingSummary, setLoadingSummary] = useState(true);
     const [summary, setSummary] = useState<string>('');
@@ -57,6 +61,19 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                         ✨ Raport Spółki: {symbol}
                     </h2>
                     <div style={{ display: 'flex', gap: '0.8rem' }}>
+                        <button 
+                            onClick={onToggleWatch}
+                            style={{
+                                background: isWatched ? 'rgba(139, 92, 246, 0.1)' : 'rgba(255,255,255,0.05)',
+                                color: isWatched ? '#8b5cf6' : '#fff',
+                                border: `1px solid ${isWatched ? 'rgba(139, 92, 246, 0.5)' : 'rgba(255,255,255,0.2)'}`,
+                                padding: '0.4rem 0.8rem',
+                                fontSize: '0.85rem'
+                            }}
+                        >
+                            {isWatched ? '⭐ Obserwowana' : '☆ Dodaj do obserwowanych'}
+                        </button>
+                        
                         <button 
                             onClick={onToggleChart}
                             style={{

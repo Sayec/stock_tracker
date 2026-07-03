@@ -5,6 +5,7 @@ import { MetricsChart } from './components/MetricsChart';
 import { Sidebar } from './components/Sidebar';
 import { StockScreener } from './components/StockScreener';
 import { CompanyModal } from './components/CompanyModal';
+import { ReportModal } from './components/ReportModal';
 
 type StockData = {
     date: string;
@@ -22,6 +23,10 @@ type Company = {
 function App() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
+    const [watchlist, setWatchlist] = useState<string[]>(() => {
+        const saved = localStorage.getItem('trackedStocks');
+        return saved ? JSON.parse(saved) : [];
+    });
     const [stockDataMap, setStockDataMap] = useState<Record<string, StockData[]>>({});
 
     const [loadingCompanies, setLoadingCompanies] = useState(true);
@@ -31,6 +36,32 @@ function App() {
     const [insightSymbol, setInsightSymbol] = useState<string | null>(null);
 
     const [viewMode, setViewMode] = useState<'chart' | 'screener'>('screener');
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [portfolioReport, setPortfolioReport] = useState<string | null>(null);
+
+    const handleGenerateReport = async () => {
+        if (watchlist.length === 0) return;
+        setReportModalOpen(true);
+        setReportLoading(true);
+        try {
+            const res = await fetch('/api/portfolio/summary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbols: watchlist })
+            });
+            const data = await res.json();
+            if (data.report) {
+                setPortfolioReport(data.report);
+            } else {
+                setPortfolioReport('Wystąpił błąd podczas generowania raportu: ' + data.error);
+            }
+        } catch (err: any) {
+            setPortfolioReport('Błąd połączenia z serwerem: ' + err.message);
+        } finally {
+            setReportLoading(false);
+        }
+    };
 
     const toggleMetric = (metric: string) => {
         setActiveMetrics(prev =>
@@ -50,6 +81,16 @@ function App() {
 
     const handleRemoveSymbol = (symbol: string) => {
         setSelectedSymbols(prev => prev.filter(s => s !== symbol));
+    };
+
+    const handleToggleWatch = (symbol: string) => {
+        setWatchlist(prev => {
+            const newList = prev.includes(symbol)
+                ? prev.filter(s => s !== symbol)
+                : [...prev, symbol];
+            localStorage.setItem('trackedStocks', JSON.stringify(newList));
+            return newList;
+        });
     };
 
     // Pobranie listy spółek
@@ -157,6 +198,26 @@ function App() {
                     </button>
                 </div>
 
+                <div style={{ marginBottom: '2rem' }}>
+                    <button
+                        onClick={handleGenerateReport}
+                        disabled={watchlist.length === 0}
+                        style={{
+                            width: '100%',
+                            background: watchlist.length > 0 ? 'linear-gradient(45deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
+                            color: watchlist.length > 0 ? '#fff' : 'var(--text-muted)',
+                            border: 'none',
+                            padding: '0.8rem',
+                            borderRadius: '12px',
+                            fontWeight: 'bold',
+                            cursor: watchlist.length > 0 ? 'pointer' : 'not-allowed',
+                            boxShadow: watchlist.length > 0 ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none'
+                        }}
+                    >
+                        ✨ Raport Tygodnia (Obserwowane: {watchlist.length})
+                    </button>
+                </div>
+
                 {viewMode === 'chart' && (
                     <Sidebar
                         selectedSymbols={selectedSymbols}
@@ -215,6 +276,16 @@ function App() {
                             setViewMode('chart');
                             setInsightSymbol(null);
                         }}
+                        isWatched={watchlist.includes(insightSymbol)}
+                        onToggleWatch={() => handleToggleWatch(insightSymbol)}
+                    />
+                )}
+
+                {reportModalOpen && (
+                    <ReportModal 
+                        report={portfolioReport}
+                        loading={reportLoading}
+                        onClose={() => setReportModalOpen(false)}
                     />
                 )}
             </div>

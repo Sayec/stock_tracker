@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import { generateCompanySummary } from './aiService';
+import { generateCompanySummary, generatePortfolioSummary } from './aiService';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -172,6 +172,30 @@ app.get('/api/stocks/top', async (req, res) => {
     } catch (error) {
         console.error('Błąd pobierania topowych spółek:', error);
         res.status(500).json({ error: 'Wewnętrzny błąd serwera przy pobieraniu top spółek' });
+    }
+});
+
+// 5. Endpoint do generowania cotygodniowego raportu dla portfolio
+app.post('/api/portfolio/summary', async (req, res) => {
+    const { symbols } = req.body;
+    
+    if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        return res.status(400).json({ error: 'Należy przekazać tablicę symboli' });
+    }
+
+    try {
+        // Pobierz najnowsze metryki dla podanych spółek
+        const latestData = await prisma.stockData.findMany({
+            where: { symbol: { in: symbols } },
+            orderBy: { date: 'desc' },
+            distinct: ['symbol'], // Pobieramy tylko najnowszy rekord dla każdego symbolu
+        });
+
+        const report = await generatePortfolioSummary(symbols, latestData);
+        res.json({ report });
+    } catch (error) {
+        console.error('Błąd generowania raportu portfolio:', error);
+        res.status(500).json({ error: 'Błąd generowania raportu portfolio' });
     }
 });
 
