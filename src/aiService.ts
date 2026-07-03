@@ -64,7 +64,7 @@ Oto moje obserwowane spółki i ich aktualne parametry giełdowe z dzisiaj:
 ${metricsText}
 
 Twoim zadaniem jest napisać dla mnie "Tygodniowy Raport Obserwowanych Spółek".
-Użyj wyszukiwarki (Google Search), aby znaleźć najświeższe wiadomości (nowe kontrakty, produkty, sprawozdania finansowe, skandale, itp.) z OSTATNICH 7 DNI dla tych spółek.
+Opisz pokrótce najświeższe trendy, wiadomości branżowe lub innowacje (nowe kontrakty, produkty, sprawozdania) dotyczące tych spółek, bazując na swojej wiedzy.
 
 Zasady, których absolutnie musisz przestrzegać:
 1. ODPOWIADAJ WYŁĄCZNIE W JĘZYKU POLSKIM.
@@ -75,11 +75,8 @@ Zasady, których absolutnie musisz przestrzegać:
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3.1-pro',
-            contents: prompt,
-            config: {
-                tools: [{ googleSearch: {} }]
-            }
+            model: 'gemini-3.1-flash-lite',
+            contents: prompt
         });
 
         return response.text || 'Brak wygenerowanego podsumowania.';
