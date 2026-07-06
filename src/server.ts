@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { generateCompanySummary, generatePortfolioSummary } from './aiService';
+import YahooFinance from 'yahoo-finance2';
+
+const yahooFinance = new YahooFinance();
 
 const app = express();
 const prisma = new PrismaClient();
@@ -206,11 +209,7 @@ app.post('/api/portfolio/quotes', async (req, res) => {
     if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
         return res.status(400).json({ error: 'Należy przekazać tablicę symboli' });
     }
-
     try {
-        const yf = await import('yahoo-finance2');
-        const yahooFinance = yf.default;
-
         // Yahoo Finance v3 wspiera zapytania batchowe dla quotes
         const quotes: any[] = await yahooFinance.quote(symbols);
         
@@ -219,7 +218,7 @@ app.post('/api/portfolio/quotes', async (req, res) => {
             symbol: q.symbol,
             price: q.regularMarketPrice,
             changePercent: q.regularMarketChangePercent,
-            earningsDate: q.earningsTimestamp ? new Date(q.earningsTimestamp * 1000).toISOString() : null
+            earningsDate: q.earningsTimestamp ? new Date(q.earningsTimestamp).toISOString() : null
         }));
 
         res.json({ quotes: results });
