@@ -37,30 +37,10 @@ function App() {
 
     const [viewMode, setViewMode] = useState<'chart' | 'screener'>('screener');
     const [reportModalOpen, setReportModalOpen] = useState(false);
-    const [reportLoading, setReportLoading] = useState(false);
-    const [portfolioReport, setPortfolioReport] = useState<string | null>(null);
 
     const handleGenerateReport = async () => {
         if (watchlist.length === 0) return;
         setReportModalOpen(true);
-        setReportLoading(true);
-        try {
-            const res = await fetch('/api/portfolio/summary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbols: watchlist })
-            });
-            const data = await res.json();
-            if (data.report) {
-                setPortfolioReport(data.report);
-            } else {
-                setPortfolioReport('Wystąpił błąd podczas generowania raportu: ' + data.error);
-            }
-        } catch (err: any) {
-            setPortfolioReport('Błąd połączenia z serwerem: ' + err.message);
-        } finally {
-            setReportLoading(false);
-        }
     };
 
     const toggleMetric = (metric: string) => {
@@ -283,9 +263,15 @@ function App() {
 
                 {reportModalOpen && (
                     <ReportModal 
-                        report={portfolioReport}
-                        loading={reportLoading}
+                        watchlist={watchlist}
                         onClose={() => setReportModalOpen(false)}
+                        onGoToChart={(symbol) => {
+                            if (!selectedSymbols.includes(symbol)) {
+                                handleSelectSymbol(symbol);
+                            }
+                            setViewMode('chart');
+                            setReportModalOpen(false);
+                        }}
                     />
                 )}
             </div>

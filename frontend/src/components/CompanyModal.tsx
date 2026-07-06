@@ -22,6 +22,9 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
     const [loadingSummary, setLoadingSummary] = useState(true);
     const [summary, setSummary] = useState<string>('');
     const [metrics, setMetrics] = useState<any>(null);
+    const [earningsDate, setEarningsDate] = useState<string | null>(null);
+    const [livePrice, setLivePrice] = useState<number | null>(null);
+    const [liveChangePercent, setLiveChangePercent] = useState<number | null>(null);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -40,6 +43,27 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                     const history = await histRes.json();
                     if (history && history.length > 0) {
                         setMetrics(history[history.length - 1]);
+                    }
+                }
+
+                // Fetch earnings date from Yahoo Finance
+                const quoteRes = await fetch('/api/portfolio/quotes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbols: [symbol] })
+                });
+                if (quoteRes.ok) {
+                    const quoteData = await quoteRes.json();
+                    if (quoteData.quotes && quoteData.quotes.length > 0) {
+                        const q = quoteData.quotes[0];
+                        if (q.price) setLivePrice(q.price);
+                        if (q.changePercent !== undefined) setLiveChangePercent(q.changePercent);
+
+                        const dateString = q.earningsDate;
+                        if (dateString) {
+                            const dateObj = new Date(dateString);
+                            setEarningsDate(dateObj.toLocaleDateString('pl-PL'));
+                        }
                     }
                 }
             } catch (err) {
@@ -104,10 +128,21 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                 </div>
                 
                 {metrics && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: earningsDate ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
                         <div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cena</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#10b981' }}>${metrics.price?.toFixed(2)}</div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Zamknięcie (D-1)</div>
+                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>${metrics.price?.toFixed(2)}</div>
+                            {livePrice !== null && (
+                                <div style={{ marginTop: '0.2rem', fontSize: '0.9rem' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Live: </span>
+                                    <span style={{ color: '#10b981', fontWeight: 'bold' }}>${livePrice.toFixed(2)}</span>
+                                    {liveChangePercent !== null && (
+                                        <span style={{ color: liveChangePercent >= 0 ? '#10b981' : '#ef4444', marginLeft: '0.3rem', fontSize: '0.8rem' }}>
+                                            ({liveChangePercent >= 0 ? '+' : ''}{liveChangePercent.toFixed(2)}%)
+                                        </span>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Upside</div>
@@ -121,6 +156,12 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>PSG</div>
                             <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{metrics.psgRatio?.toFixed(2)}</div>
                         </div>
+                        {earningsDate && (
+                            <div>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Kolejne wyniki</div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#eab308' }}>{earningsDate}</div>
+                            </div>
+                        )}
                     </div>
                 )}
 

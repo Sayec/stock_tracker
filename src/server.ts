@@ -199,6 +199,36 @@ app.post('/api/portfolio/summary', async (req, res) => {
     }
 });
 
+// 6. Endpoint pobierający ceny "na żywo" i daty wyników przez Yahoo Finance
+app.post('/api/portfolio/quotes', async (req, res) => {
+    const { symbols } = req.body;
+    
+    if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
+        return res.status(400).json({ error: 'Należy przekazać tablicę symboli' });
+    }
+
+    try {
+        const yf = await import('yahoo-finance2');
+        const yahooFinance = yf.default;
+
+        // Yahoo Finance v3 wspiera zapytania batchowe dla quotes
+        const quotes: any[] = await yahooFinance.quote(symbols);
+        
+        // Mapowanie do uproszczonego formatu dla frontendu
+        const results = quotes.map(q => ({
+            symbol: q.symbol,
+            price: q.regularMarketPrice,
+            changePercent: q.regularMarketChangePercent,
+            earningsDate: q.earningsTimestamp ? new Date(q.earningsTimestamp * 1000).toISOString() : null
+        }));
+
+        res.json({ quotes: results });
+    } catch (error) {
+        console.error('Błąd pobierania notowań z Yahoo Finance:', error);
+        res.status(500).json({ error: 'Błąd pobierania notowań z Yahoo' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`✅ Serwer API uruchomiony na porcie ${PORT}`);
 });
