@@ -36,4 +36,5 @@ model StockData {
   upside          Float
 
   @@unique([symbol, date])
+  @@index([symbol])
 }

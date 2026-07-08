@@ -14,9 +14,19 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Prosty cache w pamięci dla listy firm (odświeżany co godzinę)
+let cachedCompanies: any = null;
+let lastCacheTime = 0;
+const CACHE_TTL = 1000 * 60 * 60; // 1 godzina
+
 // 1. Endpoint zwracający listę wszystkich aktywnych spółek (do wyszukiwarki)
 app.get('/api/companies', async (req, res) => {
     try {
+        // Zwracanie z pamięci cache, jeśli istnieje i jest świeże
+        if (cachedCompanies && (Date.now() - lastCacheTime < CACHE_TTL)) {
+            return res.json(cachedCompanies);
+        }
+
         // Pobieramy tylko unikalne symbole z StockData (te, które na 100% mają dane i nie są ETF-ami bez wskaźników)
         const symbolsWithData = await prisma.stockData.groupBy({
             by: ['symbol'],
@@ -30,6 +40,10 @@ app.get('/api/companies', async (req, res) => {
             },
             select: { symbol: true, name: true }
         });
+
+        // Aktualizacja cache
+        cachedCompanies = companies;
+        lastCacheTime = Date.now();
 
         res.json(companies);
     } catch (error) {
@@ -228,6 +242,8 @@ app.post('/api/portfolio/quotes', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+    // Wymuszenie połączenia z bazą na starcie, aby pierwszy użytkownik nie odczuł opóźnienia
+    await prisma.$connect();
     console.log(`✅ Serwer API uruchomiony na porcie ${PORT}`);
 });
