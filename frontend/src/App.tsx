@@ -6,19 +6,7 @@ import { Sidebar } from './components/Sidebar';
 import { StockScreener } from './components/StockScreener';
 import { CompanyModal } from './components/CompanyModal';
 import { ReportModal } from './components/ReportModal';
-
-type StockData = {
-    date: string;
-    price: number;
-    cagr2YForward: number;
-    psgRatio: number;
-    upside: number;
-};
-
-type Company = {
-    symbol: string;
-    name: string;
-};
+import type { Company, StockData } from './types';
 
 function App() {
     const [companies, setCompanies] = useState<Company[]>([]);

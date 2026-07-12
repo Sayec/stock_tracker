@@ -227,12 +227,32 @@ app.post('/api/portfolio/quotes', async (req, res) => {
         // Yahoo Finance v3 wspiera zapytania batchowe dla quotes
         const quotes: any[] = await yahooFinance.quote(symbols);
         
+        const getNextEarningsDate = (q: any) => {
+            const now = new Date();
+            now.setHours(0,0,0,0);
+            const dates = [
+                q.earningsTimestamp ? new Date(q.earningsTimestamp) : null,
+                q.earningsTimestampStart ? new Date(q.earningsTimestampStart) : null,
+                q.earningsTimestampEnd ? new Date(q.earningsTimestampEnd) : null
+            ].filter((d): d is Date => d !== null);
+
+            if (dates.length === 0) return null;
+
+            // Najpierw szukamy najbliższej daty w przyszłości
+            const futureDates = dates.filter(d => d >= now).sort((a, b) => a.getTime() - b.getTime());
+            if (futureDates.length > 0) return futureDates[0].toISOString();
+            
+            // Jeśli nie ma żadnej w przyszłości, bierzemy najnowszą z przeszłości (fallback)
+            const pastDates = dates.filter(d => d < now).sort((a, b) => b.getTime() - a.getTime());
+            return pastDates[0].toISOString();
+        };
+
         // Mapowanie do uproszczonego formatu dla frontendu
         const results = quotes.map(q => ({
             symbol: q.symbol,
             price: q.regularMarketPrice,
             changePercent: q.regularMarketChangePercent,
-            earningsDate: q.earningsTimestamp ? new Date(q.earningsTimestamp).toISOString() : null
+            earningsDate: getNextEarningsDate(q)
         }));
 
         res.json({ quotes: results });

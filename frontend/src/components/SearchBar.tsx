@@ -1,9 +1,5 @@
 import React, { useState, useMemo } from 'react';
-
-type Company = {
-    symbol: string;
-    name: string;
-};
+import type { Company } from '../types';
 
 type SearchBarProps = {
     companies: Company[];

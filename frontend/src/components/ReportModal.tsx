@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from 'react';
-
-type QuoteInfo = {
-    symbol: string;
-    price: number;
-    changePercent: number;
-    earningsDate: string | null;
-};
+import type { QuoteInfo } from '../types';
 
 type ReportModalProps = {
     watchlist: string[];

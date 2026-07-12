@@ -1,9 +1,5 @@
 import React from 'react';
-
-type Company = {
-    symbol: string;
-    name: string;
-};
+import type { Company } from '../types';
 
 type SidebarProps = {
     selectedSymbols: string[];
