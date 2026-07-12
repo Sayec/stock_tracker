@@ -37,4 +37,5 @@ model StockData {
 
   @@unique([symbol, date])
   @@index([symbol])
+  @@index([date])
 }
