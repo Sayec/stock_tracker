@@ -72,14 +72,14 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
     }, [metric, selectedSymbols]);
 
     return (
-        <div className="card" style={{ flex: 1, padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div className="card-header" style={{ paddingBottom: '0.5rem', marginBottom: '0.5rem', justifyContent: 'space-between', borderBottom: 'none' }}>
-                <h3 style={{ margin: 0, fontSize: '0.95rem', color: config.color, fontWeight: 600 }}>{config.name}</h3>
+        <div className="card chart-card">
+            <div className="card-header chart-header-row">
+                <h3 className="chart-title" style={{ color: config.color }}>{config.name}</h3>
                 
                 {/* Legenda dla spółek */}
-                <div style={{ display: 'flex', gap: '1rem' }}>
+                <div className="chart-legend">
                     {selectedSymbols.map((symbol, idx) => (
-                        <div key={symbol} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}>
+                        <div key={symbol} className="chart-legend-item">
                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[idx % COLORS.length] }} />
                             <span style={{ color: 'var(--text-main)' }}>{symbol}</span>
                         </div>
@@ -88,8 +88,7 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
             </div>
             
             <div 
-                className="chart-container" 
-                style={{ flex: 1, minHeight: 0, marginTop: 0, position: 'relative' }}
+                className="chart-container chart-body"
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
             >
@@ -191,7 +190,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data, selectedSymbol
     }
 
     return (
-        <div className="charts-list" style={{ width: '100%', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 6rem)', gap: '1rem' }}>
+        <div className="charts-list charts-list-container">
             {activeMetrics.map(metric => {
                 const config = getMetricConfig(metric);
                 return <ChartItem key={metric} metric={metric} config={config} data={data} selectedSymbols={selectedSymbols} />;

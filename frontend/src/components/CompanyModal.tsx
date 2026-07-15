@@ -80,45 +80,42 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
                 <button className="modal-close" onClick={onClose}>×</button>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingRight: '2rem' }}>
-                    <h2 style={{ color: '#8b5cf6', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="modal-header-container">
+                    <h2 className="modal-title modal-title-company">
                         ✨ Raport Spółki: {symbol}
                     </h2>
-                    <div style={{ display: 'flex', gap: '0.8rem' }}>
+                    <div className="modal-actions">
                         <button 
+                            className="action-btn"
                             onClick={onToggleWatch}
                             style={{
                                 background: isWatched ? 'rgba(139, 92, 246, 0.1)' : 'rgba(255,255,255,0.05)',
                                 color: isWatched ? '#8b5cf6' : '#fff',
-                                border: `1px solid ${isWatched ? 'rgba(139, 92, 246, 0.5)' : 'rgba(255,255,255,0.2)'}`,
-                                padding: '0.4rem 0.8rem',
-                                fontSize: '0.85rem'
+                                border: `1px solid ${isWatched ? 'rgba(139, 92, 246, 0.5)' : 'rgba(255,255,255,0.2)'}`
                             }}
                         >
                             {isWatched ? '⭐ Obserwowana' : '☆ Dodaj do obserwowanych'}
                         </button>
                         
                         <button 
+                            className="action-btn"
                             onClick={onToggleChart}
                             style={{
                                 background: isSelected ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255,255,255,0.05)',
                                 color: isSelected ? '#ef4444' : '#fff',
-                                border: `1px solid ${isSelected ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.2)'}`,
-                                padding: '0.4rem 0.8rem',
-                                fontSize: '0.85rem'
+                                border: `1px solid ${isSelected ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.2)'}`
                             }}
                         >
                             {isSelected ? 'Usuń z wykresów' : 'Dodaj do wykresów'}
                         </button>
 
                         <button 
+                            className="action-btn"
                             onClick={onGoToChart}
                             style={{
                                 background: 'var(--accent)',
                                 color: '#000',
                                 border: 'none',
-                                padding: '0.4rem 0.8rem',
-                                fontSize: '0.85rem',
                                 fontWeight: 'bold'
                             }}
                         >
@@ -128,13 +125,13 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                 </div>
                 
                 {metrics && (
-                    <div style={{ display: 'grid', gridTemplateColumns: earningsDate ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)', gap: '1rem', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
+                    <div className="stats-grid" style={{ gridTemplateColumns: earningsDate ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)' }}>
                         <div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Zamknięcie (D-1)</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)' }}>${metrics.price?.toFixed(2)}</div>
+                            <div className="stat-label">Zamknięcie (D-1)</div>
+                            <div className="stat-value stat-value-primary">${metrics.price?.toFixed(2)}</div>
                             {livePrice !== null && (
                                 <div style={{ marginTop: '0.2rem', fontSize: '0.9rem' }}>
-                                    <span style={{ color: 'var(--text-muted)' }}>Live: </span>
+                                    <span className="stat-label">Live: </span>
                                     <span style={{ color: '#10b981', fontWeight: 'bold' }}>${livePrice.toFixed(2)}</span>
                                     {liveChangePercent !== null && (
                                         <span style={{ color: liveChangePercent >= 0 ? '#10b981' : '#ef4444', marginLeft: '0.3rem', fontSize: '0.8rem' }}>
@@ -145,21 +142,21 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                             )}
                         </div>
                         <div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Upside</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{metrics.upside?.toFixed(1)}%</div>
+                            <div className="stat-label">Upside</div>
+                            <div className="stat-value">{metrics.upside?.toFixed(1)}%</div>
                         </div>
                         <div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>CAGR 2Y</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{metrics.cagr2YForward?.toFixed(1)}%</div>
+                            <div className="stat-label">CAGR 2Y</div>
+                            <div className="stat-value">{metrics.cagr2YForward?.toFixed(1)}%</div>
                         </div>
                         <div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>PSG</div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff' }}>{metrics.psgRatio?.toFixed(2)}</div>
+                            <div className="stat-label">PSG</div>
+                            <div className="stat-value">{metrics.psgRatio?.toFixed(2)}</div>
                         </div>
                         {earningsDate && (
                             <div>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Kolejne wyniki</div>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#eab308' }}>{earningsDate}</div>
+                                <div className="stat-label">Kolejne wyniki</div>
+                                <div className="stat-value stat-value-warning">{earningsDate}</div>
                             </div>
                         )}
                     </div>
@@ -168,7 +165,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                 {loadingSummary ? (
                     <div className="loading">Trwa odpytywanie Gemini...</div>
                 ) : (
-                    <div style={{ color: 'var(--text-main)', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontSize: '1.05rem' }}>
+                    <div className="ai-summary-text">
                         {summary || 'Brak podsumowania dla tej spółki.'}
                     </div>
                 )}

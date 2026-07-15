@@ -9,7 +9,8 @@
 h1 {
   font-size: 2rem;
   font-weight: 800;
-  margin-bottom: 0.5rem;
+  margin-top: 0;
+  margin-bottom: 0.2rem;
   background: -webkit-linear-gradient(45deg, #38bdf8, #818cf8);
   -webkit-background-clip: text;
   background-clip: text;
@@ -20,7 +21,8 @@ h1 {
 .subtitle {
   color: var(--text-muted);
   font-size: 1rem;
-  margin-bottom: 2rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
   text-align: left;
 }
 
@@ -66,4 +68,55 @@ h1 {
 
 .large-chart {
   height: 220px;
+}
+
+/* App View Toggles */
+.view-mode-toggles {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.view-toggle-btn {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border: none;
+  padding: 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: bold;
+}
+
+.view-toggle-btn.active {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 15px var(--accent-glow);
+}
+
+.generate-report-container {
+  margin-bottom: 1rem;
+}
+
+.main-content-view {
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.chart-dashboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-empty-state {
+  margin-top: 10rem;
+  text-align: center;
+  color: var(--text-muted);
 }

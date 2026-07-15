@@ -66,8 +66,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, on
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
                 <button className="modal-close" onClick={onClose}>×</button>
-                <div style={{ marginBottom: '1.5rem', paddingRight: '2rem' }}>
-                    <h2 style={{ color: '#ec4899', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="modal-header-container">
+                    <h2 className="modal-title modal-title-report">
                         ✨ Raport Tygodnia
                     </h2>
                 </div>
@@ -77,25 +77,26 @@ export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, on
                     {loadingQuotes ? (
                         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Pobieranie aktualnych notowań...</div>
                     ) : (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', overflow: 'hidden' }}>
+                        <table className="report-table-container">
                             <thead>
-                                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <th style={{ padding: '1rem' }}>Symbol</th>
-                                    <th style={{ padding: '1rem', textAlign: 'right' }}>Cena</th>
-                                    <th style={{ padding: '1rem', textAlign: 'right' }}>Zmiana (1D)</th>
-                                    <th style={{ padding: '1rem', textAlign: 'center' }}>Akcja</th>
+                                <tr className="report-tr-head">
+                                    <th className="report-th">Symbol</th>
+                                    <th className="report-th" style={{ textAlign: 'right' }}>Cena</th>
+                                    <th className="report-th" style={{ textAlign: 'right' }}>Zmiana (1D)</th>
+                                    <th className="report-th" style={{ textAlign: 'center' }}>Akcja</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {quotes.map(q => (
-                                    <tr key={q.symbol} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <td style={{ padding: '1rem', fontWeight: 'bold', color: 'var(--accent)' }}>{q.symbol}</td>
-                                        <td style={{ padding: '1rem', textAlign: 'right' }}>${q.price?.toFixed(2)}</td>
-                                        <td style={{ padding: '1rem', textAlign: 'right', color: q.changePercent >= 0 ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
+                                    <tr key={q.symbol} className="report-tr">
+                                        <td className="report-td" style={{ fontWeight: 'bold', color: 'var(--accent)' }}>{q.symbol}</td>
+                                        <td className="report-td" style={{ textAlign: 'right' }}>${q.price?.toFixed(2)}</td>
+                                        <td className="report-td" style={{ textAlign: 'right', color: q.changePercent >= 0 ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>
                                             {q.changePercent >= 0 ? '+' : ''}{q.changePercent?.toFixed(2)}%
                                         </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                        <td className="report-td" style={{ textAlign: 'center' }}>
                                             <button 
+                                                className="btn-chart"
                                                 onClick={() => onGoToChart(q.symbol)}
                                                 style={{
                                                     background: 'rgba(139, 92, 246, 0.1)',
@@ -114,7 +115,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, on
                                 ))}
                                 {quotes.length === 0 && (
                                     <tr>
-                                        <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Brak danych.</td>
+                                        <td className="report-td" colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Brak danych.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -126,19 +127,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, on
                     {!report && !loadingReport && (
                         <div style={{ textAlign: 'center' }}>
                             <button
+                                className="btn-generate-report"
                                 onClick={handleGenerateAiReport}
-                                style={{
-                                    background: 'linear-gradient(45deg, #8b5cf6, #ec4899)',
-                                    color: '#fff',
-                                    border: 'none',
-                                    padding: '1rem 2rem',
-                                    borderRadius: '12px',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 4px 15px rgba(139, 92, 246, 0.4)'
-                                }}
                             >
-                                🤖 Generuj Podsumowanie Wiadomości AI
+                                ⚡ Generuj Inteligentny Raport
                             </button>
                             <p style={{ marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>AI przeanalizuje najnowsze wiadomości rynkowe dla wszystkich powyższych spółek.</p>
                         </div>

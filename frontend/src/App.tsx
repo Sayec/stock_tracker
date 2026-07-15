@@ -11,6 +11,7 @@ import type { Company, StockData } from './types';
 function App() {
     const [companies, setCompanies] = useState<Company[]>([]);
     const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
+    const [hiddenSymbols, setHiddenSymbols] = useState<string[]>([]);
     const [watchlist, setWatchlist] = useState<string[]>(() => {
         const saved = localStorage.getItem('trackedStocks');
         return saved ? JSON.parse(saved) : [];
@@ -49,6 +50,15 @@ function App() {
 
     const handleRemoveSymbol = (symbol: string) => {
         setSelectedSymbols(prev => prev.filter(s => s !== symbol));
+        setHiddenSymbols(prev => prev.filter(s => s !== symbol));
+    };
+
+    const handleToggleVisibility = (symbol: string) => {
+        setHiddenSymbols(prev => 
+            prev.includes(symbol) 
+                ? prev.filter(s => s !== symbol) 
+                : [...prev, symbol]
+        );
     };
 
     const handleToggleWatch = (symbol: string) => {
@@ -137,47 +147,30 @@ function App() {
                     onSelectCompany={setInsightSymbol}
                 />
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                <div className="view-mode-toggles">
                     <button
-                        className="top-stocks-btn"
+                        className={`view-toggle-btn ${viewMode === 'screener' ? 'active' : ''}`}
                         onClick={() => setViewMode('screener')}
-                        style={{
-                            flex: 1,
-                            background: viewMode === 'screener' ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
-                            color: viewMode === 'screener' ? '#000' : '#fff',
-                            display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center',
-                            boxShadow: viewMode === 'screener' ? '0 0 15px var(--accent-glow)' : 'none'
-                        }}
                     >
                         🏆 Skaner
                     </button>
                     <button
-                        className="top-stocks-btn"
+                        className={`view-toggle-btn ${viewMode === 'chart' ? 'active' : ''}`}
                         onClick={() => setViewMode('chart')}
-                        style={{
-                            flex: 1,
-                            background: viewMode === 'chart' ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
-                            color: viewMode === 'chart' ? '#000' : '#fff',
-                            display: 'flex', justifyContent: 'center', gap: '0.5rem', alignItems: 'center',
-                            boxShadow: viewMode === 'chart' ? '0 0 15px var(--accent-glow)' : 'none'
-                        }}
                     >
                         📈 Wykresy
                     </button>
                 </div>
 
-                <div style={{ marginBottom: '2rem' }}>
+                <div className="generate-report-container">
                     <button
                         onClick={handleGenerateReport}
                         disabled={watchlist.length === 0}
+                        className="btn-generate-report"
                         style={{
                             width: '100%',
                             background: watchlist.length > 0 ? 'linear-gradient(45deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
                             color: watchlist.length > 0 ? '#fff' : 'var(--text-muted)',
-                            border: 'none',
-                            padding: '0.8rem',
-                            borderRadius: '12px',
-                            fontWeight: 'bold',
                             cursor: watchlist.length > 0 ? 'pointer' : 'not-allowed',
                             boxShadow: watchlist.length > 0 ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none'
                         }}
@@ -189,11 +182,13 @@ function App() {
                 {viewMode === 'chart' && (
                     <Sidebar
                         selectedSymbols={selectedSymbols}
+                        hiddenSymbols={hiddenSymbols}
                         companies={companies}
                         activeMetrics={activeMetrics}
                         toggleMetric={toggleMetric}
                         onRemoveSymbol={handleRemoveSymbol}
-                        onOpenInsightModal={(symbol) => setInsightSymbol(symbol)}
+                        onToggleVisibility={handleToggleVisibility}
+                        onOpenInsightModal={setInsightSymbol}
                     />
                 )}
             </div>
@@ -203,27 +198,27 @@ function App() {
                 {error && <div className="error">Błąd: {error}</div>}
 
                 {/* Kontener Skanera */}
-                <div style={{ display: viewMode === 'screener' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <div className="main-content-view" style={{ display: viewMode === 'screener' ? 'flex' : 'none' }}>
                     <StockScreener onToggleChart={handleSelectSymbol} onOpenInsight={setInsightSymbol} selectedSymbols={selectedSymbols} />
                 </div>
 
                 {/* Kontener Wykresów */}
-                <div style={{ display: viewMode === 'chart' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <div className="main-content-view" style={{ display: viewMode === 'chart' ? 'flex' : 'none' }}>
                     {selectedSymbols.length > 0 ? (
-                        <div className="dashboard single-dashboard" style={{ flex: 1 }}>
+                        <div className="dashboard single-dashboard chart-dashboard">
                             {loadingData ? (
                                 <div className="loading">Pobieranie danych giełdowych...</div>
                             ) : (
                                 <MetricsChart
                                     data={mergedData}
-                                    selectedSymbols={selectedSymbols}
+                                    selectedSymbols={selectedSymbols.filter(s => !hiddenSymbols.includes(s))}
                                     activeMetrics={activeMetrics}
                                 />
                             )}
                         </div>
                     ) : (
                         !loadingCompanies && (
-                            <div className="empty-state" style={{ marginTop: '10rem' }}>
+                            <div className="empty-state app-empty-state">
                                 Wyszukaj i dodaj spółki z panelu bocznego lub kliknij spółkę w Skanerze, aby zobaczyć i porównać profesjonalne wykresy.
                             </div>
                         )
