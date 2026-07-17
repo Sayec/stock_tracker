@@ -3,6 +3,8 @@ import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import { generateCompanySummary, generatePortfolioSummary } from './aiService';
 import YahooFinance from 'yahoo-finance2';
+import fs from 'fs';
+import path from 'path';
 
 const yahooFinance = new YahooFinance();
 
@@ -10,24 +12,21 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
-// Otwieramy CORS aby Vercel mógł bez problemu odpytywać to API
 app.use(cors());
 app.use(express.json());
 
-// Prosty cache w pamięci dla listy firm (odświeżany co godzinę)
-let cachedCompanies: any = null;
-let lastCacheTime = 0;
-const CACHE_TTL = 1000 * 60 * 60; // 1 godzina
+const CACHE_FILE_PATH = path.join(__dirname, 'companiesCache.json');
 
-// 1. Endpoint zwracający listę wszystkich aktywnych spółek (do wyszukiwarki)
 app.get('/api/companies', async (req, res) => {
     try {
-        // Zwracanie z pamięci cache, jeśli istnieje i jest świeże
-        if (cachedCompanies && (Date.now() - lastCacheTime < CACHE_TTL)) {
-            return res.json(cachedCompanies);
+        // Zawsze czytamy z pliku, jeśli istnieje, aby nie blokować frontendu
+        // Plik ten jest generowany raz dziennie przez skrypt index.ts
+        if (fs.existsSync(CACHE_FILE_PATH)) {
+            const fileData = fs.readFileSync(CACHE_FILE_PATH, 'utf-8');
+            return res.json(JSON.parse(fileData));
         }
 
-        // Pobieramy tylko unikalne symbole z StockData (te, które na 100% mają dane i nie są ETF-ami bez wskaźników)
+        // Pobieramy z bazy danych TYLKO jako fallback (np. pierwsze uruchomienie)
         const symbolsWithData = await prisma.stockData.groupBy({
             by: ['symbol'],
         });
@@ -41,9 +40,8 @@ app.get('/api/companies', async (req, res) => {
             select: { symbol: true, name: true }
         });
 
-        // Aktualizacja cache
-        cachedCompanies = companies;
-        lastCacheTime = Date.now();
+        // Zapis do pliku
+        fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(companies));
 
         res.json(companies);
     } catch (error) {

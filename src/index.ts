@@ -137,8 +137,27 @@ async function main() {
 
     // 7. WYSYŁKA RAPORTU NA DISCORD (podsumowanie dnia)
     await sendDailyDiscordReport();
-}
 
+    // 8. Odtworzenie lokalnego cache dla API frontendu
+    console.log('Generowanie pliku cache ze spółkami...');
+    try {
+        const symbolsWithData = await prisma.stockData.groupBy({ by: ['symbol'] });
+        const validSymbols = symbolsWithData.map(s => s.symbol);
+
+        const activeCompanies = await prisma.company.findMany({
+            where: { isActive: true, symbol: { in: validSymbols } },
+            select: { symbol: true, name: true }
+        });
+
+        const fs = require('fs');
+        const path = require('path');
+        const CACHE_FILE_PATH = path.join(__dirname, 'companiesCache.json');
+        fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(activeCompanies));
+        console.log('✅ Zapisano plik cache ze spółkami.');
+    } catch (e: any) {
+        console.error('Błąd przy zapisywaniu cache:', e.message);
+    }
+}
 main()
   .then(async () => {
     await prisma.$disconnect();
