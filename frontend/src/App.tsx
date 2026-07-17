@@ -6,7 +6,8 @@ import { Sidebar } from './components/Sidebar';
 import { StockScreener } from './components/StockScreener';
 import { CompanyModal } from './components/CompanyModal';
 import { ReportModal } from './components/ReportModal';
-import type { Company, StockData } from './types';
+import { EarningsCalendarModal } from './components/EarningsCalendarModal';
+import type { Company, StockData, QuoteInfo } from './types';
 
 function App() {
     const [companies, setCompanies] = useState<Company[]>([]);
@@ -26,6 +27,52 @@ function App() {
 
     const [viewMode, setViewMode] = useState<'chart' | 'screener'>('screener');
     const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+
+    const [watchlistQuotes, setWatchlistQuotes] = useState<QuoteInfo[]>([]);
+    const [dismissedToasts, setDismissedToasts] = useState<string[]>([]);
+
+    // Pobieranie danych dla obserwowanych spółek (w tym earningsDate)
+    useEffect(() => {
+        const fetchWatchlistQuotes = async () => {
+            if (watchlist.length === 0) {
+                setWatchlistQuotes([]);
+                return;
+            }
+            try {
+                const res = await fetch('/api/portfolio/quotes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbols: watchlist })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setWatchlistQuotes(data.quotes || []);
+                }
+            } catch (err) {
+                console.error("Error fetching watchlist quotes:", err);
+            }
+        };
+
+        const timeoutId = setTimeout(() => {
+            fetchWatchlistQuotes();
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [watchlist]);
+
+    const upcomingEarnings = watchlistQuotes.filter(q => {
+        if (!q.earningsDate) return false;
+        const date = new Date(q.earningsDate);
+        const today = new Date();
+        const diffTime = date.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 7 && !dismissedToasts.includes(q.symbol);
+    });
+
+    const dismissToast = (symbol: string) => {
+        setDismissedToasts(prev => [...prev, symbol]);
+    };
 
     const handleGenerateReport = async () => {
         if (watchlist.length === 0) return;
@@ -54,9 +101,9 @@ function App() {
     };
 
     const handleToggleVisibility = (symbol: string) => {
-        setHiddenSymbols(prev => 
-            prev.includes(symbol) 
-                ? prev.filter(s => s !== symbol) 
+        setHiddenSymbols(prev =>
+            prev.includes(symbol)
+                ? prev.filter(s => s !== symbol)
                 : [...prev, symbol]
         );
     };
@@ -162,20 +209,35 @@ function App() {
                     </button>
                 </div>
 
-                <div className="generate-report-container">
+                <div className="generate-report-container" style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
                         onClick={handleGenerateReport}
                         disabled={watchlist.length === 0}
                         className="btn-generate-report"
                         style={{
-                            width: '100%',
+                            flex: 2,
                             background: watchlist.length > 0 ? 'linear-gradient(45deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
                             color: watchlist.length > 0 ? '#fff' : 'var(--text-muted)',
                             cursor: watchlist.length > 0 ? 'pointer' : 'not-allowed',
                             boxShadow: watchlist.length > 0 ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none'
                         }}
                     >
-                        ✨ Raport Tygodnia (Obserwowane: {watchlist.length})
+                        ✨ Raport Tygodnia ({watchlist.length})
+                    </button>
+                    <button
+                        onClick={() => setCalendarModalOpen(true)}
+                        disabled={watchlist.length === 0}
+                        className="btn-generate-report"
+                        style={{
+                            flex: 1,
+                            background: watchlist.length > 0 ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+                            color: watchlist.length > 0 ? '#fff' : 'var(--text-muted)',
+                            cursor: watchlist.length > 0 ? 'pointer' : 'not-allowed',
+                            padding: '0.8rem',
+                            display: 'flex', justifyContent: 'center', alignItems: 'center'
+                        }}
+                    >
+                        📅 Kalendarz
                     </button>
                 </div>
 
@@ -227,7 +289,7 @@ function App() {
 
                 {/* Wspólny Modal Spółki */}
                 {insightSymbol && (
-                    <CompanyModal 
+                    <CompanyModal
                         symbol={insightSymbol}
                         isSelected={selectedSymbols.includes(insightSymbol)}
                         onClose={() => setInsightSymbol(null)}
@@ -245,7 +307,7 @@ function App() {
                 )}
 
                 {reportModalOpen && (
-                    <ReportModal 
+                    <ReportModal
                         watchlist={watchlist}
                         onClose={() => setReportModalOpen(false)}
                         onGoToChart={(symbol) => {
@@ -257,6 +319,31 @@ function App() {
                         }}
                     />
                 )}
+
+                {calendarModalOpen && (
+                    <EarningsCalendarModal
+                        quotes={watchlistQuotes}
+                        onClose={() => setCalendarModalOpen(false)}
+                        onGoToCompany={(symbol) => setInsightSymbol(symbol)}
+                    />
+                )}
+
+                {/* Toasty powiadomień */}
+                <div className="toast-container">
+                    {upcomingEarnings.map(q => {
+                        const days = Math.ceil((new Date(q.earningsDate!).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                        return (
+                            <div key={`toast-${q.symbol}`} className="earnings-toast">
+                                <div className="toast-icon">📅</div>
+                                <div className="toast-content">
+                                    <strong>{q.symbol}</strong>
+                                    <span>Wyniki za {days} {days === 1 ? 'dzień' : 'dni'}</span>
+                                </div>
+                                <button className="toast-close" onClick={() => dismissToast(q.symbol)}>×</button>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
