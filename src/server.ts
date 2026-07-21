@@ -140,6 +140,8 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
     }
 });
 
+const LATEST_STOCKS_FILE_PATH = path.join(__dirname, 'latestStocksCache.json');
+
 // 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
 app.get('/api/stocks/top', async (req, res) => {
     try {
@@ -147,6 +149,20 @@ app.get('/api/stocks/top', async (req, res) => {
         const cagrLimit = req.query.cagr !== undefined ? parseFloat(req.query.cagr as string) : 0.20;
         const marketCapLimit = req.query.marketCap !== undefined ? parseFloat(req.query.marketCap as string) : 10000000000;
 
+        if (fs.existsSync(LATEST_STOCKS_FILE_PATH)) {
+            const fileData = fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8');
+            let merged = JSON.parse(fileData);
+            
+            merged = merged.filter((s: any) => 
+                s.upside >= upsideLimit && 
+                s.cagr2YForward >= cagrLimit && 
+                s.marketCap >= marketCapLimit
+            );
+            
+            return res.json(merged);
+        }
+
+        // FALLBACK: pobieranie z bazy jeśli brak pliku
         const latestRecord = await prisma.stockData.findFirst({
             orderBy: { date: 'desc' },
             select: { date: true }
@@ -175,13 +191,11 @@ app.get('/api/stocks/top', async (req, res) => {
             select: { symbol: true, ipoDate: true }
         });
 
-        const merged = topStocks.map(stock => {
-            const company = companies.find(c => c.symbol === stock.symbol);
-            return {
-                ...stock,
-                ipoDate: company?.ipoDate || null
-            };
-        });
+        const companyMap = new Map(companies.map(c => [c.symbol, c.ipoDate]));
+        const merged = topStocks.map(stock => ({
+            ...stock,
+            ipoDate: companyMap.get(stock.symbol) || null
+        }));
 
         res.json(merged);
     } catch (error) {

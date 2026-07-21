@@ -154,6 +154,33 @@ async function main() {
         const CACHE_FILE_PATH = path.join(__dirname, 'companiesCache.json');
         fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(activeCompanies));
         console.log('✅ Zapisano plik cache ze spółkami.');
+
+        // Odtworzenie cache dla Skanera
+        const latestRecord = await prisma.stockData.findFirst({
+            orderBy: { date: 'desc' },
+            select: { date: true }
+        });
+
+        if (latestRecord) {
+            const targetDate = new Date(latestRecord.date);
+            targetDate.setHours(0, 0, 0, 0);
+
+            const latestStocks = await prisma.stockData.findMany({
+                where: { date: { gte: targetDate } },
+                orderBy: { upside: 'desc' }
+            });
+
+            const companyMap = new Map(activeCompanies.map(c => [c.symbol, (c as any).ipoDate || null]));
+            const merged = latestStocks.map(stock => ({
+                ...stock,
+                ipoDate: companyMap.get(stock.symbol) || null
+            }));
+
+            const LATEST_STOCKS_FILE_PATH = path.join(__dirname, 'latestStocksCache.json');
+            fs.writeFileSync(LATEST_STOCKS_FILE_PATH, JSON.stringify(merged));
+            console.log('✅ Zapisano plik cache ze skanerem.');
+        }
+
     } catch (e: any) {
         console.error('Błąd przy zapisywaniu cache:', e.message);
     }
