@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-const CACHE_FILE_PATH = path.join(__dirname, 'companiesCache.json');
+const CACHE_FILE_PATH = path.join(process.cwd(), 'companiesCache.json');
 
 app.get('/api/companies', async (req, res) => {
     try {
@@ -140,7 +140,7 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
     }
 });
 
-const LATEST_STOCKS_FILE_PATH = path.join(__dirname, 'latestStocksCache.json');
+const LATEST_STOCKS_FILE_PATH = path.join(process.cwd(), 'latestStocksCache.json');
 
 // 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
 app.get('/api/stocks/top', async (req, res) => {

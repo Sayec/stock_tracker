@@ -151,7 +151,7 @@ async function main() {
 
         const fs = require('fs');
         const path = require('path');
-        const CACHE_FILE_PATH = path.join(__dirname, 'companiesCache.json');
+        const CACHE_FILE_PATH = path.join(process.cwd(), 'companiesCache.json');
         fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(activeCompanies));
         console.log('✅ Zapisano plik cache ze spółkami.');
 
@@ -176,7 +176,7 @@ async function main() {
                 ipoDate: companyMap.get(stock.symbol) || null
             }));
 
-            const LATEST_STOCKS_FILE_PATH = path.join(__dirname, 'latestStocksCache.json');
+            const LATEST_STOCKS_FILE_PATH = path.join(process.cwd(), 'latestStocksCache.json');
             fs.writeFileSync(LATEST_STOCKS_FILE_PATH, JSON.stringify(merged));
             console.log('✅ Zapisano plik cache ze skanerem.');
         }

@@ -18,6 +18,8 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
     const [filterCagr, setFilterCagr] = useState(0);
     const [filterCap, setFilterCap] = useState(10);
 
+    const isInitialMount = React.useRef(true);
+
     useEffect(() => {
         const fetchStocks = async () => {
             setLoading(true);
@@ -33,11 +35,16 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
             }
         };
 
-        const timeoutId = setTimeout(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
             fetchStocks();
-        }, 300);
+        } else {
+            const timeoutId = setTimeout(() => {
+                fetchStocks();
+            }, 300);
 
-        return () => clearTimeout(timeoutId);
+            return () => clearTimeout(timeoutId);
+        }
     }, [filterUpside, filterCagr, filterCap]);
 
     const handleSort = (key: SortKey) => {
