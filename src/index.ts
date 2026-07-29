@@ -19,7 +19,8 @@ async function main() {
             // Jeśli ostatnia transakcja na SPY była więcej niż 22 godziny temu (79200 sekund)
             if (nowSeconds - spyQuote.timestamp > 79200) {
                 console.log('Giełda w USA była wczoraj zamknięta (weekend lub święto). Ostatnia transakcja > 22h temu.');
-                console.log('Przerywam pobieranie, aby nie duplikować danych.');
+                console.log('Odświeżam pliki cache z ostatnich dostępnych danych i kończę.');
+                await regenerateCache(prisma);
                 return;
             }
         }
@@ -139,24 +140,29 @@ async function main() {
     await sendDailyDiscordReport();
 
     // 8. Odtworzenie lokalnego cache dla API frontendu
-    console.log('Generowanie pliku cache ze spółkami...');
+    await regenerateCache(prisma);
+}
+
+export async function regenerateCache(prismaClient?: PrismaClient) {
+    const db = prismaClient || prisma;
+    console.log('Generowanie plików cache ze spółkami i skanerem...');
     try {
-        const symbolsWithData = await prisma.stockData.groupBy({ by: ['symbol'] });
+        const symbolsWithData = await db.stockData.groupBy({ by: ['symbol'] });
         const validSymbols = symbolsWithData.map(s => s.symbol);
 
-        const activeCompanies = await prisma.company.findMany({
+        const activeCompanies = await db.company.findMany({
             where: { isActive: true, symbol: { in: validSymbols } },
-            select: { symbol: true, name: true }
+            select: { symbol: true, name: true, ipoDate: true }
         });
 
         const fs = require('fs');
         const path = require('path');
         const CACHE_FILE_PATH = path.join(process.cwd(), 'companiesCache.json');
-        fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(activeCompanies));
-        console.log('✅ Zapisano plik cache ze spółkami.');
+        fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(activeCompanies.map(c => ({ symbol: c.symbol, name: c.name }))));
+        console.log('✅ Zapisano plik cache ze spółkami (companiesCache.json).');
 
         // Odtworzenie cache dla Skanera
-        const latestRecord = await prisma.stockData.findFirst({
+        const latestRecord = await db.stockData.findFirst({
             orderBy: { date: 'desc' },
             select: { date: true }
         });
@@ -165,12 +171,12 @@ async function main() {
             const targetDate = new Date(latestRecord.date);
             targetDate.setHours(0, 0, 0, 0);
 
-            const latestStocks = await prisma.stockData.findMany({
+            const latestStocks = await db.stockData.findMany({
                 where: { date: { gte: targetDate } },
                 orderBy: { upside: 'desc' }
             });
 
-            const companyMap = new Map(activeCompanies.map(c => [c.symbol, (c as any).ipoDate || null]));
+            const companyMap = new Map(activeCompanies.map(c => [c.symbol, c.ipoDate || null]));
             const merged = latestStocks.map(stock => ({
                 ...stock,
                 ipoDate: companyMap.get(stock.symbol) || null
@@ -178,9 +184,8 @@ async function main() {
 
             const LATEST_STOCKS_FILE_PATH = path.join(process.cwd(), 'latestStocksCache.json');
             fs.writeFileSync(LATEST_STOCKS_FILE_PATH, JSON.stringify(merged));
-            console.log('✅ Zapisano plik cache ze skanerem.');
+            console.log(`✅ Zapisano plik cache ze skanerem (latestStocksCache.json) - ${merged.length} spółek.`);
         }
-
     } catch (e: any) {
         console.error('Błąd przy zapisywaniu cache:', e.message);
     }

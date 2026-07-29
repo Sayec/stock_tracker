@@ -32,6 +32,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     Cena
                 </button>
                 <button
+                    className={activeMetrics.includes('targetConsensus') ? 'active' : ''}
+                    onClick={() => toggleMetric('targetConsensus')}
+                >
+                    Price Target
+                </button>
+                <button
                     className={activeMetrics.includes('upside') ? 'active' : ''}
                     onClick={() => toggleMetric('upside')}
                 >

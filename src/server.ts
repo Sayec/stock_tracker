@@ -15,6 +15,16 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Middleware do mierzenia czasu odpowiedzi i weryfikacji wydajności
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`⏱️  [API] ${req.method} ${req.originalUrl} - ${duration}ms`);
+    });
+    next();
+});
+
 const CACHE_FILE_PATH = path.join(process.cwd(), 'companiesCache.json');
 
 app.get('/api/companies', async (req, res) => {
@@ -71,6 +81,7 @@ app.get('/api/stocks', async (req, res) => {
             return {
                 date: localDate.toISOString().split('T')[0],
                 price: curr.price,
+                targetConsensus: curr.targetConsensus,
                 cagr2YForward: parseFloat((curr.cagr2YForward * 100).toFixed(2)),
                 psgRatio: parseFloat(curr.psgRatio.toFixed(2)),
                 upside: parseFloat((curr.upside * 100).toFixed(2)),
@@ -162,7 +173,7 @@ app.get('/api/stocks/top', async (req, res) => {
             return res.json(merged);
         }
 
-        // FALLBACK: pobieranie z bazy jeśli brak pliku
+        console.log('⚠️ [API] Brak pliku latestStocksCache.json! Wykonuję ciężkie zapytanie do bazy danych PostgreSQL...');
         const latestRecord = await prisma.stockData.findFirst({
             orderBy: { date: 'desc' },
             select: { date: true }

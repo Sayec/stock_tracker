@@ -175,6 +175,7 @@ function App() {
                 mergedDataMap[point.date] = { date: point.date };
             }
             mergedDataMap[point.date][`${symbol}_price`] = point.price;
+            mergedDataMap[point.date][`${symbol}_targetConsensus`] = point.targetConsensus;
             mergedDataMap[point.date][`${symbol}_cagr2YForward`] = point.cagr2YForward;
             mergedDataMap[point.date][`${symbol}_psgRatio`] = point.psgRatio;
             mergedDataMap[point.date][`${symbol}_upside`] = point.upside;

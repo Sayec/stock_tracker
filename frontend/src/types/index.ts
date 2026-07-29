@@ -6,6 +6,7 @@ export interface Company {
 export interface StockData {
     date: string;
     price: number;
+    targetConsensus?: number;
     cagr2YForward: number;
     psgRatio: number;
     upside: number;
