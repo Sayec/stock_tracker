@@ -157,7 +157,7 @@ export async function regenerateCache(prismaClient?: PrismaClient) {
 
         const fs = require('fs');
         const path = require('path');
-        const CACHE_FILE_PATH = path.join(process.cwd(), 'companiesCache.json');
+        const CACHE_FILE_PATH = path.resolve(__dirname, '..', 'companiesCache.json');
         fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(activeCompanies.map(c => ({ symbol: c.symbol, name: c.name }))));
         console.log('✅ Zapisano plik cache ze spółkami (companiesCache.json).');
 
@@ -182,7 +182,7 @@ export async function regenerateCache(prismaClient?: PrismaClient) {
                 ipoDate: companyMap.get(stock.symbol) || null
             }));
 
-            const LATEST_STOCKS_FILE_PATH = path.join(process.cwd(), 'latestStocksCache.json');
+            const LATEST_STOCKS_FILE_PATH = path.resolve(__dirname, '..', 'latestStocksCache.json');
             fs.writeFileSync(LATEST_STOCKS_FILE_PATH, JSON.stringify(merged));
             console.log(`✅ Zapisano plik cache ze skanerem (latestStocksCache.json) - ${merged.length} spółek.`);
         }
