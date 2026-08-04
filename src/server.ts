@@ -26,14 +26,19 @@ app.use((req, res, next) => {
 });
 
 const CACHE_FILE_PATH = path.resolve(__dirname, '..', 'companiesCache.json');
+console.log(`🔍 [STARTUP] __dirname: ${__dirname}`);
+console.log(`🔍 [STARTUP] companiesCache path: ${CACHE_FILE_PATH}`);
+console.log(`🔍 [STARTUP] companiesCache exists: ${fs.existsSync(CACHE_FILE_PATH)}`);
 
 app.get('/api/companies', async (req, res) => {
     try {
-        // Zawsze czytamy z pliku, jeśli istnieje, aby nie blokować frontendu
-        // Plik ten jest generowany raz dziennie przez skrypt index.ts
+        console.log(`🔍 [/api/companies] Checking cache at: ${CACHE_FILE_PATH}`);
+        console.log(`🔍 [/api/companies] Cache file exists: ${fs.existsSync(CACHE_FILE_PATH)}`);
         if (fs.existsSync(CACHE_FILE_PATH)) {
             const fileData = fs.readFileSync(CACHE_FILE_PATH, 'utf-8');
-            return res.json(JSON.parse(fileData));
+            const parsed = JSON.parse(fileData);
+            console.log(`✅ [/api/companies] Served ${parsed.length} companies from CACHE`);
+            return res.json(parsed);
         }
 
         // Pobieramy z bazy danych TYLKO jako fallback (np. pierwsze uruchomienie)
@@ -152,6 +157,8 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
 });
 
 const LATEST_STOCKS_FILE_PATH = path.resolve(__dirname, '..', 'latestStocksCache.json');
+console.log(`🔍 [STARTUP] latestStocksCache path: ${LATEST_STOCKS_FILE_PATH}`);
+console.log(`🔍 [STARTUP] latestStocksCache exists: ${fs.existsSync(LATEST_STOCKS_FILE_PATH)}`);
 
 // 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
 app.get('/api/stocks/top', async (req, res) => {
@@ -160,16 +167,20 @@ app.get('/api/stocks/top', async (req, res) => {
         const cagrLimit = req.query.cagr !== undefined ? parseFloat(req.query.cagr as string) : 0.20;
         const marketCapLimit = req.query.marketCap !== undefined ? parseFloat(req.query.marketCap as string) : 10000000000;
 
+        console.log(`🔍 [/api/stocks/top] Checking cache at: ${LATEST_STOCKS_FILE_PATH}`);
+        console.log(`🔍 [/api/stocks/top] Cache file exists: ${fs.existsSync(LATEST_STOCKS_FILE_PATH)}`);
         if (fs.existsSync(LATEST_STOCKS_FILE_PATH)) {
             const fileData = fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8');
             let merged = JSON.parse(fileData);
+            const totalBeforeFilter = merged.length;
             
             merged = merged.filter((s: any) => 
                 s.upside >= upsideLimit && 
                 s.cagr2YForward >= cagrLimit && 
                 s.marketCap >= marketCapLimit
             );
-            
+
+            console.log(`✅ [/api/stocks/top] Served ${merged.length}/${totalBeforeFilter} stocks from CACHE`);
             return res.json(merged);
         }
 
