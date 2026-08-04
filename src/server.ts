@@ -28,37 +28,46 @@ app.use((req, res, next) => {
 const CACHE_FILE_PATH = path.resolve(__dirname, '..', 'companiesCache.json');
 const LATEST_STOCKS_FILE_PATH = path.resolve(__dirname, '..', 'latestStocksCache.json');
 
-// === IN-MEMORY CACHE (ładowany raz przy starcie) ===
+// === IN-MEMORY CACHE (z automatycznym wykrywaniem zmian w pliku) ===
 let companiesMemCache: any[] | null = null;
 let latestStocksMemCache: any[] | null = null;
+let lastCompaniesFileMtime: number = 0;
+let lastLatestStocksFileMtime: number = 0;
 
-function loadCachesIntoMemory() {
+function checkAndReloadCaches() {
     try {
         if (fs.existsSync(CACHE_FILE_PATH)) {
-            companiesMemCache = JSON.parse(fs.readFileSync(CACHE_FILE_PATH, 'utf-8'));
-            console.log(`✅ [STARTUP] Loaded ${companiesMemCache!.length} companies into memory from cache.`);
-        } else {
-            console.log(`⚠️ [STARTUP] companiesCache.json NOT FOUND at: ${CACHE_FILE_PATH}`);
+            const stats = fs.statSync(CACHE_FILE_PATH);
+            if (stats.mtimeMs > lastCompaniesFileMtime) {
+                companiesMemCache = JSON.parse(fs.readFileSync(CACHE_FILE_PATH, 'utf-8'));
+                lastCompaniesFileMtime = stats.mtimeMs;
+                console.log(`🔄 [CACHE RELOAD] Wykryto nowy plik companiesCache.json! Wczytano ${companiesMemCache!.length} firm.`);
+            }
         }
     } catch (e) {
-        console.error(`❌ [STARTUP] Error loading companiesCache:`, e);
+        console.error(`❌ Error reloading companiesCache:`, e);
     }
+
     try {
         if (fs.existsSync(LATEST_STOCKS_FILE_PATH)) {
-            latestStocksMemCache = JSON.parse(fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8'));
-            console.log(`✅ [STARTUP] Loaded ${latestStocksMemCache!.length} stocks into memory from cache.`);
-        } else {
-            console.log(`⚠️ [STARTUP] latestStocksCache.json NOT FOUND at: ${LATEST_STOCKS_FILE_PATH}`);
+            const stats = fs.statSync(LATEST_STOCKS_FILE_PATH);
+            if (stats.mtimeMs > lastLatestStocksFileMtime) {
+                latestStocksMemCache = JSON.parse(fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8'));
+                lastLatestStocksFileMtime = stats.mtimeMs;
+                console.log(`🔄 [CACHE RELOAD] Wykryto nowy plik latestStocksCache.json! Wczytano ${latestStocksMemCache!.length} spółek.`);
+            }
         }
     } catch (e) {
-        console.error(`❌ [STARTUP] Error loading latestStocksCache:`, e);
+        console.error(`❌ Error reloading latestStocksCache:`, e);
     }
 }
 
-loadCachesIntoMemory();
+// Pierwsze załadowanie przy starcie
+checkAndReloadCaches();
 
 app.get('/api/companies', async (req, res) => {
     try {
+        checkAndReloadCaches();
         if (companiesMemCache) {
             return res.json(companiesMemCache);
         }
@@ -182,6 +191,7 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
 // 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
 app.get('/api/stocks/top', async (req, res) => {
     try {
+        checkAndReloadCaches();
         const upsideLimit = req.query.upside !== undefined ? parseFloat(req.query.upside as string) : 0.35;
         const cagrLimit = req.query.cagr !== undefined ? parseFloat(req.query.cagr as string) : 0.20;
         const marketCapLimit = req.query.marketCap !== undefined ? parseFloat(req.query.marketCap as string) : 10000000000;
