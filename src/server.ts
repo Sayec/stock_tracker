@@ -26,19 +26,41 @@ app.use((req, res, next) => {
 });
 
 const CACHE_FILE_PATH = path.resolve(__dirname, '..', 'companiesCache.json');
-console.log(`🔍 [STARTUP] __dirname: ${__dirname}`);
-console.log(`🔍 [STARTUP] companiesCache path: ${CACHE_FILE_PATH}`);
-console.log(`🔍 [STARTUP] companiesCache exists: ${fs.existsSync(CACHE_FILE_PATH)}`);
+const LATEST_STOCKS_FILE_PATH = path.resolve(__dirname, '..', 'latestStocksCache.json');
+
+// === IN-MEMORY CACHE (ładowany raz przy starcie) ===
+let companiesMemCache: any[] | null = null;
+let latestStocksMemCache: any[] | null = null;
+
+function loadCachesIntoMemory() {
+    try {
+        if (fs.existsSync(CACHE_FILE_PATH)) {
+            companiesMemCache = JSON.parse(fs.readFileSync(CACHE_FILE_PATH, 'utf-8'));
+            console.log(`✅ [STARTUP] Loaded ${companiesMemCache!.length} companies into memory from cache.`);
+        } else {
+            console.log(`⚠️ [STARTUP] companiesCache.json NOT FOUND at: ${CACHE_FILE_PATH}`);
+        }
+    } catch (e) {
+        console.error(`❌ [STARTUP] Error loading companiesCache:`, e);
+    }
+    try {
+        if (fs.existsSync(LATEST_STOCKS_FILE_PATH)) {
+            latestStocksMemCache = JSON.parse(fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8'));
+            console.log(`✅ [STARTUP] Loaded ${latestStocksMemCache!.length} stocks into memory from cache.`);
+        } else {
+            console.log(`⚠️ [STARTUP] latestStocksCache.json NOT FOUND at: ${LATEST_STOCKS_FILE_PATH}`);
+        }
+    } catch (e) {
+        console.error(`❌ [STARTUP] Error loading latestStocksCache:`, e);
+    }
+}
+
+loadCachesIntoMemory();
 
 app.get('/api/companies', async (req, res) => {
     try {
-        console.log(`🔍 [/api/companies] Checking cache at: ${CACHE_FILE_PATH}`);
-        console.log(`🔍 [/api/companies] Cache file exists: ${fs.existsSync(CACHE_FILE_PATH)}`);
-        if (fs.existsSync(CACHE_FILE_PATH)) {
-            const fileData = fs.readFileSync(CACHE_FILE_PATH, 'utf-8');
-            const parsed = JSON.parse(fileData);
-            console.log(`✅ [/api/companies] Served ${parsed.length} companies from CACHE`);
-            return res.json(parsed);
+        if (companiesMemCache) {
+            return res.json(companiesMemCache);
         }
 
         // Pobieramy z bazy danych TYLKO jako fallback (np. pierwsze uruchomienie)
@@ -55,8 +77,9 @@ app.get('/api/companies', async (req, res) => {
             select: { symbol: true, name: true }
         });
 
-        // Zapis do pliku
+        // Zapis do pliku i załadowanie do pamięci
         fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(companies));
+        companiesMemCache = companies;
 
         res.json(companies);
     } catch (error) {
@@ -156,10 +179,6 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
     }
 });
 
-const LATEST_STOCKS_FILE_PATH = path.resolve(__dirname, '..', 'latestStocksCache.json');
-console.log(`🔍 [STARTUP] latestStocksCache path: ${LATEST_STOCKS_FILE_PATH}`);
-console.log(`🔍 [STARTUP] latestStocksCache exists: ${fs.existsSync(LATEST_STOCKS_FILE_PATH)}`);
-
 // 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
 app.get('/api/stocks/top', async (req, res) => {
     try {
@@ -167,21 +186,13 @@ app.get('/api/stocks/top', async (req, res) => {
         const cagrLimit = req.query.cagr !== undefined ? parseFloat(req.query.cagr as string) : 0.20;
         const marketCapLimit = req.query.marketCap !== undefined ? parseFloat(req.query.marketCap as string) : 10000000000;
 
-        console.log(`🔍 [/api/stocks/top] Checking cache at: ${LATEST_STOCKS_FILE_PATH}`);
-        console.log(`🔍 [/api/stocks/top] Cache file exists: ${fs.existsSync(LATEST_STOCKS_FILE_PATH)}`);
-        if (fs.existsSync(LATEST_STOCKS_FILE_PATH)) {
-            const fileData = fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8');
-            let merged = JSON.parse(fileData);
-            const totalBeforeFilter = merged.length;
-            
-            merged = merged.filter((s: any) => 
-                s.upside >= upsideLimit && 
-                s.cagr2YForward >= cagrLimit && 
+        if (latestStocksMemCache) {
+            const filtered = latestStocksMemCache.filter((s: any) =>
+                s.upside >= upsideLimit &&
+                s.cagr2YForward >= cagrLimit &&
                 s.marketCap >= marketCapLimit
             );
-
-            console.log(`✅ [/api/stocks/top] Served ${merged.length}/${totalBeforeFilter} stocks from CACHE`);
-            return res.json(merged);
+            return res.json(filtered);
         }
 
         console.log('⚠️ [API] Brak pliku latestStocksCache.json! Wykonuję ciężkie zapytanie do bazy danych PostgreSQL...');
@@ -214,10 +225,26 @@ app.get('/api/stocks/top', async (req, res) => {
         });
 
         const companyMap = new Map(companies.map(c => [c.symbol, c.ipoDate]));
-        const merged = topStocks.map(stock => ({
+        // Pobieramy WSZYSTKIE spółki z ostatniego dnia (bez filtrów) do cache w RAMie
+        const allLatestStocks = await prisma.stockData.findMany({
+            where: { date: { gte: targetDate } },
+            orderBy: { upside: 'desc' }
+        });
+        const allMerged = allLatestStocks.map(stock => ({
             ...stock,
             ipoDate: companyMap.get(stock.symbol) || null
         }));
+
+        // Zapisz WSZYSTKIE spółki do RAM-u — filtrowanie odbywa się w pamięci
+        latestStocksMemCache = allMerged;
+        console.log(`✅ [/api/stocks/top] Załadowano ${allMerged.length} spółek do RAM-u z bazy danych (fallback).`);
+
+        // Zwróć przefiltrowane dane
+        const merged = allMerged.filter((s: any) =>
+            s.upside >= upsideLimit &&
+            s.cagr2YForward >= cagrLimit &&
+            s.marketCap >= marketCapLimit
+        );
 
         res.json(merged);
     } catch (error) {
