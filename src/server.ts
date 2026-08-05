@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { PrismaClient } from '@prisma/client';
 import { generateCompanySummary, generatePortfolioSummary } from './aiService';
 import YahooFinance from 'yahoo-finance2';
@@ -12,6 +13,7 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
@@ -33,8 +35,16 @@ let companiesMemCache: any[] | null = null;
 let latestStocksMemCache: any[] | null = null;
 let lastCompaniesFileMtime: number = 0;
 let lastLatestStocksFileMtime: number = 0;
+let lastCheckTime: number = 0;
 
 function checkAndReloadCaches() {
+    const now = Date.now();
+    // Sprawdzamy statystyki pliku nie częściej niż co 3 sekundy
+    if (now - lastCheckTime < 3000 && companiesMemCache && latestStocksMemCache) {
+        return;
+    }
+    lastCheckTime = now;
+
     try {
         if (fs.existsSync(CACHE_FILE_PATH)) {
             const stats = fs.statSync(CACHE_FILE_PATH);
@@ -72,22 +82,19 @@ app.get('/api/companies', async (req, res) => {
             return res.json(companiesMemCache);
         }
 
-        // Pobieramy z bazy danych TYLKO jako fallback (np. pierwsze uruchomienie)
-        const symbolsWithData = await prisma.stockData.groupBy({
-            by: ['symbol'],
-        });
-        const validSymbols = symbolsWithData.map(s => s.symbol);
-
+        // Szybki fallback z bazy danych (tylko aktywne spółki)
         const companies = await prisma.company.findMany({
-            where: { 
-                isActive: true,
-                symbol: { in: validSymbols }
-            },
-            select: { symbol: true, name: true }
+            where: { isActive: true },
+            select: { symbol: true, name: true },
+            orderBy: { symbol: 'asc' }
         });
 
         // Zapis do pliku i załadowanie do pamięci
-        fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(companies));
+        try {
+            fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(companies));
+        } catch (e) {
+            console.error('Nie udało się zapisać pliku cache firm:', e);
+        }
         companiesMemCache = companies;
 
         res.json(companies);
