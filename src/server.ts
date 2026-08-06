@@ -35,23 +35,14 @@ let companiesMemCache: any[] | null = null;
 let latestStocksMemCache: any[] | null = null;
 let lastCompaniesFileMtime: number = 0;
 let lastLatestStocksFileMtime: number = 0;
-let lastCheckTime: number = 0;
-
 function checkAndReloadCaches() {
-    const now = Date.now();
-    // Sprawdzamy statystyki pliku nie częściej niż co 3 sekundy
-    if (now - lastCheckTime < 3000 && companiesMemCache && latestStocksMemCache) {
-        return;
-    }
-    lastCheckTime = now;
-
     try {
         if (fs.existsSync(CACHE_FILE_PATH)) {
             const stats = fs.statSync(CACHE_FILE_PATH);
             if (stats.mtimeMs > lastCompaniesFileMtime) {
                 companiesMemCache = JSON.parse(fs.readFileSync(CACHE_FILE_PATH, 'utf-8'));
                 lastCompaniesFileMtime = stats.mtimeMs;
-                console.log(`🔄 [CACHE RELOAD] Wykryto nowy plik companiesCache.json! Wczytano ${companiesMemCache!.length} firm.`);
+                console.log(`🔄 [BACKGROUND RELOAD] Przeładowano companiesCache.json w tle! Wczytano ${companiesMemCache!.length} firm.`);
             }
         }
     } catch (e) {
@@ -64,7 +55,7 @@ function checkAndReloadCaches() {
             if (stats.mtimeMs > lastLatestStocksFileMtime) {
                 latestStocksMemCache = JSON.parse(fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8'));
                 lastLatestStocksFileMtime = stats.mtimeMs;
-                console.log(`🔄 [CACHE RELOAD] Wykryto nowy plik latestStocksCache.json! Wczytano ${latestStocksMemCache!.length} spółek.`);
+                console.log(`🔄 [BACKGROUND RELOAD] Przeładowano latestStocksCache.json w tle! Wczytano ${latestStocksMemCache!.length} spółek.`);
             }
         }
     } catch (e) {
@@ -72,12 +63,27 @@ function checkAndReloadCaches() {
     }
 }
 
+// Obserwowanie zmian w plikach cache w tle (Event-driven via inotify)
+try {
+    if (fs.existsSync(CACHE_FILE_PATH)) {
+        fs.watch(CACHE_FILE_PATH, () => {
+            checkAndReloadCaches();
+        });
+    }
+    if (fs.existsSync(LATEST_STOCKS_FILE_PATH)) {
+        fs.watch(LATEST_STOCKS_FILE_PATH, () => {
+            checkAndReloadCaches();
+        });
+    }
+} catch (err) {
+    console.error('Error setting up file watchers:', err);
+}
+
 // Pierwsze załadowanie przy starcie
 checkAndReloadCaches();
 
 app.get('/api/companies', async (req, res) => {
     try {
-        checkAndReloadCaches();
         if (companiesMemCache) {
             return res.json(companiesMemCache);
         }
@@ -198,7 +204,6 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
 // 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
 app.get('/api/stocks/top', async (req, res) => {
     try {
-        checkAndReloadCaches();
         const upsideLimit = req.query.upside !== undefined ? parseFloat(req.query.upside as string) : 0.35;
         const cagrLimit = req.query.cagr !== undefined ? parseFloat(req.query.cagr as string) : 0.20;
         const marketCapLimit = req.query.marketCap !== undefined ? parseFloat(req.query.marketCap as string) : 10000000000;
@@ -294,7 +299,10 @@ app.post('/api/portfolio/summary', async (req, res) => {
     }
 });
 
-// 6. Endpoint pobierający ceny "na żywo" i daty wyników przez Yahoo Finance
+const quotesCacheMap = new Map<string, { data: any; timestamp: number }>();
+const QUOTES_CACHE_TTL = 15 * 60 * 1000; // 15 minut
+
+// 6. Endpoint pobierający ceny "na żywo" i daty wyników przez Yahoo Finance (z podgrzewanym cache)
 app.post('/api/portfolio/quotes', async (req, res) => {
     const { symbols } = req.body;
     
@@ -302,12 +310,29 @@ app.post('/api/portfolio/quotes', async (req, res) => {
         return res.status(400).json({ error: 'Należy przekazać tablicę symboli' });
     }
     try {
-        // Yahoo Finance v3 wspiera zapytania batchowe dla quotes
-        const quotes: any[] = await yahooFinance.quote(symbols);
+        const now = Date.now();
+        const missingSymbols: string[] = [];
+        const cachedResults: any[] = [];
+
+        for (const sym of symbols) {
+            const cached = quotesCacheMap.get(sym);
+            if (cached && (now - cached.timestamp < QUOTES_CACHE_TTL)) {
+                cachedResults.push(cached.data);
+            } else {
+                missingSymbols.push(sym);
+            }
+        }
+
+        if (missingSymbols.length === 0) {
+            return res.json({ quotes: cachedResults });
+        }
+
+        // Pobieramy z Yahoo Finance tylko brakujące/przestarzałe notowania
+        const fetchedQuotes: any[] = await yahooFinance.quote(missingSymbols);
         
         const getNextEarningsDate = (q: any) => {
-            const now = new Date();
-            now.setHours(0,0,0,0);
+            const currentDate = new Date();
+            currentDate.setHours(0,0,0,0);
             const dates = [
                 q.earningsTimestamp ? new Date(q.earningsTimestamp) : null,
                 q.earningsTimestampStart ? new Date(q.earningsTimestampStart) : null,
@@ -316,24 +341,26 @@ app.post('/api/portfolio/quotes', async (req, res) => {
 
             if (dates.length === 0) return null;
 
-            // Najpierw szukamy najbliższej daty w przyszłości
-            const futureDates = dates.filter(d => d >= now).sort((a, b) => a.getTime() - b.getTime());
+            const futureDates = dates.filter(d => d >= currentDate).sort((a, b) => a.getTime() - b.getTime());
             if (futureDates.length > 0) return futureDates[0].toISOString();
             
-            // Jeśli nie ma żadnej w przyszłości, bierzemy najnowszą z przeszłości (fallback)
-            const pastDates = dates.filter(d => d < now).sort((a, b) => b.getTime() - a.getTime());
+            const pastDates = dates.filter(d => d < currentDate).sort((a, b) => b.getTime() - a.getTime());
             return pastDates[0].toISOString();
         };
 
-        // Mapowanie do uproszczonego formatu dla frontendu
-        const results = quotes.map(q => ({
-            symbol: q.symbol,
-            price: q.regularMarketPrice,
-            changePercent: q.regularMarketChangePercent,
-            earningsDate: getNextEarningsDate(q)
-        }));
+        const newResults = fetchedQuotes.map(q => {
+            const mapped = {
+                symbol: q.symbol,
+                price: q.regularMarketPrice,
+                changePercent: q.regularMarketChangePercent,
+                earningsDate: getNextEarningsDate(q)
+            };
+            quotesCacheMap.set(q.symbol, { data: mapped, timestamp: now });
+            return mapped;
+        });
 
-        res.json({ quotes: results });
+        const allResults = [...cachedResults, ...newResults];
+        res.json({ quotes: allResults });
     } catch (error) {
         console.error('Błąd pobierania notowań z Yahoo Finance:', error);
         res.status(500).json({ error: 'Błąd pobierania notowań z Yahoo' });
