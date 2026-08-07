@@ -36,6 +36,7 @@ let latestStocksMemCache: any[] | null = null;
 let lastCompaniesFileMtime: number = 0;
 let lastLatestStocksFileMtime: number = 0;
 function checkAndReloadCaches() {
+    let reloaded = false;
     try {
         if (fs.existsSync(CACHE_FILE_PATH)) {
             const stats = fs.statSync(CACHE_FILE_PATH);
@@ -43,6 +44,7 @@ function checkAndReloadCaches() {
                 companiesMemCache = JSON.parse(fs.readFileSync(CACHE_FILE_PATH, 'utf-8'));
                 lastCompaniesFileMtime = stats.mtimeMs;
                 console.log(`🔄 [BACKGROUND RELOAD] Przeładowano companiesCache.json w tle! Wczytano ${companiesMemCache!.length} firm.`);
+                reloaded = true;
             }
         }
     } catch (e) {
@@ -56,10 +58,29 @@ function checkAndReloadCaches() {
                 latestStocksMemCache = JSON.parse(fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8'));
                 lastLatestStocksFileMtime = stats.mtimeMs;
                 console.log(`🔄 [BACKGROUND RELOAD] Przeładowano latestStocksCache.json w tle! Wczytano ${latestStocksMemCache!.length} spółek.`);
+                reloaded = true;
             }
         }
     } catch (e) {
         console.error(`❌ Error reloading latestStocksCache:`, e);
+    }
+
+    if (reloaded) {
+        triggerInternalWarmup();
+    }
+}
+
+async function triggerInternalWarmup() {
+    try {
+        console.log('🔥 [WARMUP] Rozpoczynam automatyczne rozgrzewanie serwera i GZIP w tle...');
+        const baseUrl = `http://127.0.0.1:${PORT}`;
+        await Promise.all([
+            fetch(`${baseUrl}/api/companies`, { headers: { 'Accept-Encoding': 'gzip' } }).catch(() => {}),
+            fetch(`${baseUrl}/api/stocks/top?upside=0&cagr=0&marketCap=10000000000`, { headers: { 'Accept-Encoding': 'gzip' } }).catch(() => {})
+        ]);
+        console.log('⚡ [WARMUP] Serwer, pamięć V8 oraz GZIP zostały w 100% rozgrzane!');
+    } catch (e) {
+        // Ciche zignorowanie ewentualnego błędu rozgrzewki
     }
 }
 
@@ -341,11 +362,12 @@ app.post('/api/portfolio/quotes', async (req, res) => {
 
             if (dates.length === 0) return null;
 
+            // Szukamy najbliższej daty w przyszłości
             const futureDates = dates.filter(d => d >= currentDate).sort((a, b) => a.getTime() - b.getTime());
             if (futureDates.length > 0) return futureDates[0].toISOString();
             
-            const pastDates = dates.filter(d => d < currentDate).sort((a, b) => b.getTime() - a.getTime());
-            return pastDates[0].toISOString();
+            // Jeśli wszystkie daty z Yahoo dotyczą przeszłości, to brak znanej daty KOLEJNYCH wyników
+            return null;
         };
 
         const newResults = fetchedQuotes.map(q => {
@@ -371,4 +393,5 @@ app.listen(PORT, async () => {
     // Wymuszenie połączenia z bazą na starcie, aby pierwszy użytkownik nie odczuł opóźnienia
     await prisma.$connect();
     console.log(`✅ Serwer API uruchomiony na porcie ${PORT}`);
+    triggerInternalWarmup();
 });

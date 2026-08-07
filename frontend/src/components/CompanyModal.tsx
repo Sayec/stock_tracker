@@ -125,7 +125,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                 </div>
                 
                 {metrics && (
-                    <div className="stats-grid" style={{ gridTemplateColumns: earningsDate ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)' }}>
+                    <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
                         <div>
                             <div className="stat-label">Zamknięcie (D-1)</div>
                             <div className="stat-value stat-value-primary">${metrics.price?.toFixed(2)}</div>
@@ -153,12 +153,14 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
                             <div className="stat-label">PSG</div>
                             <div className="stat-value">{metrics.psgRatio?.toFixed(2)}</div>
                         </div>
-                        {earningsDate && (
-                            <div>
-                                <div className="stat-label">Kolejne wyniki</div>
+                        <div>
+                            <div className="stat-label">Kolejne wyniki</div>
+                            {earningsDate ? (
                                 <div className="stat-value stat-value-warning">{earningsDate}</div>
-                            </div>
-                        )}
+                            ) : (
+                                <div className="stat-value" style={{ fontSize: '0.85rem', color: '#9ca3af', marginTop: '0.2rem' }}>Brak daty</div>
+                            )}
+                        </div>
                     </div>
                 )}
 
