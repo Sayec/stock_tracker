@@ -72,17 +72,40 @@ function checkAndReloadCaches() {
 
 async function triggerInternalWarmup() {
     try {
-        console.log('🔥 [WARMUP] Rozpoczynam automatyczne rozgrzewanie serwera i GZIP w tle...');
+        // Pomijamy cykliczne rozgrzewanie w oknie nocnego pobierania danych (3:30 - 6:00 rano)
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        if ((currentHour === 3 && currentMinute >= 30) || (currentHour >= 4 && currentHour < 6)) {
+            return;
+        }
+
+        console.log('🔥 [WARMUP] Rozpoczynam automatyczne rozgrzewanie serwera, GZIP oraz Yahoo Finance w tle...');
         const baseUrl = `http://127.0.0.1:${PORT}`;
+
+        // 1. Rozgrzanie /api/companies i /api/stocks/top
         await Promise.all([
-            fetch(`${baseUrl}/api/companies`, { headers: { 'Accept-Encoding': 'gzip' } }).catch(() => {}),
-            fetch(`${baseUrl}/api/stocks/top?upside=0&cagr=0&marketCap=10000000000`, { headers: { 'Accept-Encoding': 'gzip' } }).catch(() => {})
+            fetch(`${baseUrl}/api/companies`, { headers: { 'Accept-Encoding': 'gzip' } }).catch(() => { }),
+            fetch(`${baseUrl}/api/stocks/top?upside=0&cagr=0&marketCap=10000000000`, { headers: { 'Accept-Encoding': 'gzip' } }).catch(() => { })
         ]);
-        console.log('⚡ [WARMUP] Serwer, pamięć V8 oraz GZIP zostały w 100% rozgrzane!');
+
+        // 2. Pre-fetch w tle notowań popularnych spółek, by Yahoo Finance nie blokowało połączenia użytkownika
+        try {
+            await fetch(`${baseUrl}/api/portfolio/quotes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip' },
+                body: JSON.stringify({ symbols: ['SPY', 'QQQ', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA'] })
+            });
+        } catch (e) { }
+
+        console.log('⚡ [WARMUP] Serwer, pamięć V8, GZIP oraz notowania Yahoo zostały w 100% rozgrzane!');
     } catch (e) {
         // Ciche zignorowanie ewentualnego błędu rozgrzewki
     }
 }
+
+// Uruchamianie cyklicznego rozgrzewania w tle co 30 minut (Periodic Background Warmup)
+setInterval(triggerInternalWarmup, 60 * 60 * 1000);
 
 // Obserwowanie zmian w plikach cache w tle (Event-driven via inotify)
 try {
@@ -134,7 +157,7 @@ app.get('/api/companies', async (req, res) => {
 // 2. Endpoint zwracający historię wskaźników dla KONKRETNEJ spółki
 app.get('/api/stocks', async (req, res) => {
     const symbol = req.query.symbol as string;
-    
+
     if (!symbol) {
         return res.status(400).json({ error: 'Należy podać parametr symbol' });
     }
@@ -177,7 +200,7 @@ app.get('/api/stocks', async (req, res) => {
 // 3. Endpoint pobierający / generujący podsumowanie AI dla spółki
 app.get('/api/companies/:symbol/summary', async (req, res) => {
     const symbol = req.params.symbol;
-    
+
     try {
         const company = await prisma.company.findUnique({
             where: { symbol }
@@ -190,7 +213,7 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
         // Sprawdzamy czy podsumowanie istnieje i ma mniej niż 7 dni
         const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
         const now = new Date();
-        const isFresh = company.aiSummaryDate && 
+        const isFresh = company.aiSummaryDate &&
             (now.getTime() - company.aiSummaryDate.getTime() < SEVEN_DAYS);
 
         if (company.aiSummary && isFresh) {
@@ -299,7 +322,7 @@ app.get('/api/stocks/top', async (req, res) => {
 // 5. Endpoint do generowania cotygodniowego raportu dla portfolio
 app.post('/api/portfolio/summary', async (req, res) => {
     const { symbols } = req.body;
-    
+
     if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
         return res.status(400).json({ error: 'Należy przekazać tablicę symboli' });
     }
@@ -326,7 +349,7 @@ const QUOTES_CACHE_TTL = 15 * 60 * 1000; // 15 minut
 // 6. Endpoint pobierający ceny "na żywo" i daty wyników przez Yahoo Finance (z podgrzewanym cache)
 app.post('/api/portfolio/quotes', async (req, res) => {
     const { symbols } = req.body;
-    
+
     if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
         return res.status(400).json({ error: 'Należy przekazać tablicę symboli' });
     }
@@ -350,10 +373,10 @@ app.post('/api/portfolio/quotes', async (req, res) => {
 
         // Pobieramy z Yahoo Finance tylko brakujące/przestarzałe notowania
         const fetchedQuotes: any[] = await yahooFinance.quote(missingSymbols);
-        
+
         const getNextEarningsDate = (q: any) => {
             const currentDate = new Date();
-            currentDate.setHours(0,0,0,0);
+            currentDate.setHours(0, 0, 0, 0);
             const dates = [
                 q.earningsTimestamp ? new Date(q.earningsTimestamp) : null,
                 q.earningsTimestampStart ? new Date(q.earningsTimestampStart) : null,
@@ -365,7 +388,7 @@ app.post('/api/portfolio/quotes', async (req, res) => {
             // Szukamy najbliższej daty w przyszłości
             const futureDates = dates.filter(d => d >= currentDate).sort((a, b) => a.getTime() - b.getTime());
             if (futureDates.length > 0) return futureDates[0].toISOString();
-            
+
             // Jeśli wszystkie daty z Yahoo dotyczą przeszłości, to brak znanej daty KOLEJNYCH wyników
             return null;
         };
