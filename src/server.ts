@@ -36,7 +36,6 @@ let latestStocksMemCache: any[] | null = null;
 let lastCompaniesFileMtime: number = 0;
 let lastLatestStocksFileMtime: number = 0;
 function checkAndReloadCaches() {
-    let reloaded = false;
     try {
         if (fs.existsSync(CACHE_FILE_PATH)) {
             const stats = fs.statSync(CACHE_FILE_PATH);
@@ -44,7 +43,6 @@ function checkAndReloadCaches() {
                 companiesMemCache = JSON.parse(fs.readFileSync(CACHE_FILE_PATH, 'utf-8'));
                 lastCompaniesFileMtime = stats.mtimeMs;
                 console.log(`🔄 [BACKGROUND RELOAD] Przeładowano companiesCache.json w tle! Wczytano ${companiesMemCache!.length} firm.`);
-                reloaded = true;
             }
         }
     } catch (e) {
@@ -58,54 +56,12 @@ function checkAndReloadCaches() {
                 latestStocksMemCache = JSON.parse(fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8'));
                 lastLatestStocksFileMtime = stats.mtimeMs;
                 console.log(`🔄 [BACKGROUND RELOAD] Przeładowano latestStocksCache.json w tle! Wczytano ${latestStocksMemCache!.length} spółek.`);
-                reloaded = true;
             }
         }
     } catch (e) {
         console.error(`❌ Error reloading latestStocksCache:`, e);
     }
-
-    if (reloaded) {
-        triggerInternalWarmup();
-    }
 }
-
-async function triggerInternalWarmup() {
-    try {
-        // Pomijamy cykliczne rozgrzewanie w oknie nocnego pobierania danych (3:30 - 6:00 rano)
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        if ((currentHour === 3 && currentMinute >= 30) || (currentHour >= 4 && currentHour < 6)) {
-            return;
-        }
-
-        console.log('🔥 [WARMUP] Rozpoczynam automatyczne rozgrzewanie serwera, GZIP oraz Yahoo Finance w tle...');
-        const baseUrl = `http://127.0.0.1:${PORT}`;
-
-        // 1. Rozgrzanie /api/companies i /api/stocks/top
-        await Promise.all([
-            fetch(`${baseUrl}/api/companies`, { headers: { 'Accept-Encoding': 'gzip' } }).catch(() => { }),
-            fetch(`${baseUrl}/api/stocks/top?upside=0&cagr=0&marketCap=10000000000`, { headers: { 'Accept-Encoding': 'gzip' } }).catch(() => { })
-        ]);
-
-        // 2. Pre-fetch w tle notowań popularnych spółek, by Yahoo Finance nie blokowało połączenia użytkownika
-        try {
-            await fetch(`${baseUrl}/api/portfolio/quotes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip' },
-                body: JSON.stringify({ symbols: ['SPY', 'QQQ', 'NVDA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'TSLA'] })
-            });
-        } catch (e) { }
-
-        console.log('⚡ [WARMUP] Serwer, pamięć V8, GZIP oraz notowania Yahoo zostały w 100% rozgrzane!');
-    } catch (e) {
-        // Ciche zignorowanie ewentualnego błędu rozgrzewki
-    }
-}
-
-// Uruchamianie cyklicznego rozgrzewania w tle co 30 minut (Periodic Background Warmup)
-setInterval(triggerInternalWarmup, 60 * 60 * 1000);
 
 // Obserwowanie zmian w plikach cache w tle (Event-driven via inotify)
 try {
@@ -371,8 +327,10 @@ app.post('/api/portfolio/quotes', async (req, res) => {
             return res.json({ quotes: cachedResults });
         }
 
-        // Pobieramy z Yahoo Finance tylko brakujące/przestarzałe notowania
-        const fetchedQuotes: any[] = await yahooFinance.quote(missingSymbols);
+        // Pobieramy z Yahoo Finance tylko brakujące/przestarzałe notowania z timeoutem 3.5s
+        const fetchPromise = yahooFinance.quote(missingSymbols);
+        const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 3500));
+        const fetchedQuotes: any[] = await Promise.race([fetchPromise, timeoutPromise]);
 
         const getNextEarningsDate = (q: any) => {
             const currentDate = new Date();
@@ -416,5 +374,4 @@ app.listen(PORT, async () => {
     // Wymuszenie połączenia z bazą na starcie, aby pierwszy użytkownik nie odczuł opóźnienia
     await prisma.$connect();
     console.log(`✅ Serwer API uruchomiony na porcie ${PORT}`);
-    triggerInternalWarmup();
 });
