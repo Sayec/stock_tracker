@@ -176,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             >
                                 <div style={{ overflow: 'hidden' }}>
                                     <div style={{ fontWeight: 'bold', color: 'var(--accent)', fontSize: '1.1rem' }}>{symbol}</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: "200px" }}>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: "140px" }}>
                                         {company?.name}
                                     </div>
                                 </div>
