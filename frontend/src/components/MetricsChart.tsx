@@ -15,6 +15,50 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
     const labelRef = React.useRef<HTMLDivElement>(null);
     const chartState = React.useRef<{ p1: any; p2: any }>({ p1: null, p2: null });
 
+    const [hoverData, setHoverData] = React.useState<{ date?: string; values: Record<string, number> } | null>(null);
+
+    // Ostatnie (najnowsze) wartości z danych dla każdej spółki jako stan domyślny
+    const latestValues = React.useMemo(() => {
+        if (!data || data.length === 0) return {};
+        const lastPoint = data[data.length - 1];
+        const res: Record<string, number> = {};
+        selectedSymbols.forEach(sym => {
+            const val = lastPoint[`${sym}_${metric}`];
+            if (val !== undefined && val !== null) {
+                res[sym] = val;
+            }
+        });
+        return res;
+    }, [data, selectedSymbols, metric]);
+
+    const activeValues = hoverData ? hoverData.values : latestValues;
+    const activeDate = hoverData?.date || (data.length > 0 ? data[data.length - 1].date : null);
+
+    const formatVal = (val?: number) => {
+        if (val === undefined || val === null || isNaN(val)) return '-';
+        if (metric === 'price' || metric === 'targetConsensus') return `$${val.toFixed(2)}`;
+        if (metric === 'upside' || metric === 'cagr2YForward') return `${val >= 0 ? '+' : ''}${val.toFixed(1)}%`;
+        return val.toFixed(2);
+    };
+
+    const CustomTooltip = ({ active, payload, label }: any) => {
+        React.useEffect(() => {
+            if (active && payload && payload.length > 0) {
+                const values: Record<string, number> = {};
+                payload.forEach((item: any) => {
+                    if (item.name && item.value !== undefined && item.value !== null) {
+                        values[item.name] = item.value;
+                    }
+                });
+                setHoverData({ date: label, values });
+            } else {
+                setHoverData(null);
+            }
+        }, [active, payload, label]);
+
+        return null;
+    };
+
     const handleMouseMove = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!crosshairRef.current || !labelRef.current) return;
         
@@ -24,7 +68,6 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
         const { p1, p2 } = chartState.current;
         if (!p1) return;
         
-        // Obliczenie granic osi Y (margines górny i orientacyjna oś X na dole)
         const paddingTop = 10;
         const paddingBottom = 30;
         const chartHeight = rect.height - paddingTop - paddingBottom;
@@ -36,7 +79,6 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
 
         let value = p1.value;
         if (p2 && p2.value !== p1.value) {
-            // Równanie prostej y = m * x + b
             const m = (p2.cy - p1.cy) / (p2.value - p1.value);
             const b = p1.cy - m * p1.value;
             value = (mouseY - b) / m;
@@ -54,10 +96,9 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
         if (crosshairRef.current) {
             crosshairRef.current.style.visibility = 'hidden';
         }
+        setHoverData(null);
     }, []);
 
-    // Używamy kropek do wyciągnięcia mapowania pikseli względem wartości osi Y.
-    // Pobieramy punkty TYLKO dla pierwszej spółki, żeby nie mieszać współrzędnych z wielu linii.
     const renderInvisibleDot = React.useCallback((props: any) => {
         const firstSymbolKey = `${selectedSymbols[0]}_${metric}`;
         
@@ -73,17 +114,42 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
 
     return (
         <div className="card chart-card">
-            <div className="card-header chart-header-row">
-                <h3 className="chart-title" style={{ color: config.color }}>{config.name}</h3>
-                
-                {/* Legenda dla spółek */}
-                <div className="chart-legend">
-                    {selectedSymbols.map((symbol, idx) => (
-                        <div key={symbol} className="chart-legend-item">
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[idx % COLORS.length] }} />
-                            <span style={{ color: 'var(--text-main)' }}>{symbol}</span>
+            <div className="card-header chart-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div>
+                    <h3 className="chart-title" style={{ color: config.color, margin: 0, fontSize: '1.1rem' }}>{config.name}</h3>
+                    {activeDate && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                            Data: <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{activeDate}</span>
                         </div>
-                    ))}
+                    )}
+                </div>
+                
+                {/* Dynamiczna legenda z wartościami dla spółek w najechanej dacie */}
+                <div className="chart-legend" style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {selectedSymbols.map((symbol, idx) => {
+                        const val = activeValues[symbol];
+                        const color = COLORS[idx % COLORS.length];
+                        return (
+                            <div 
+                                key={symbol} 
+                                className="chart-legend-item" 
+                                style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '0.4rem', 
+                                    background: 'rgba(255,255,255,0.05)', 
+                                    padding: '0.25rem 0.6rem', 
+                                    borderRadius: '6px', 
+                                    border: `1px solid ${hoverData ? color : 'rgba(255,255,255,0.1)'}`,
+                                    transition: 'all 0.15s ease'
+                                }}
+                            >
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />
+                                <span style={{ color: 'var(--text-main)', fontWeight: '600', fontSize: '0.85rem' }}>{symbol}:</span>
+                                <span style={{ color: color, fontWeight: 'bold', fontSize: '0.9rem' }}>{formatVal(val)}</span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
             
@@ -112,9 +178,8 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
                                 domain={config.domain as any}
                             />
                             
-                            {/* Zostawiamy Tooltip tylko dla samej pionowej linii (cursor) */}
                             <Tooltip
-                                content={() => null}
+                                content={<CustomTooltip />}
                                 cursor={{ stroke: 'rgba(255,255,255,0.6)', strokeWidth: 1.5, strokeDasharray: '4 4' }}
                             />
                             
@@ -139,7 +204,7 @@ const ChartItem = ({ metric, config, data, selectedSymbols }: { metric: string, 
                     )}
                 </ResponsiveContainer>
                 
-                {/* Natywny, płynny celownik (poziomy crosshair z etykietą) */}
+                {/* Natywny celownik poziomy */}
                 <div 
                     ref={crosshairRef} 
                     style={{ 
