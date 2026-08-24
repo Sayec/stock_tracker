@@ -176,15 +176,40 @@ export async function regenerateCache(prismaClient?: PrismaClient) {
                 orderBy: { upside: 'desc' }
             });
 
+            // Pobieramy historię PSG Ratio dla wszystkich spółek w celu obliczenia percentyli wyceny
+            const allHistoricalData = await db.stockData.findMany({
+                select: { symbol: true, psgRatio: true }
+            });
+
+            const psgHistoryMap = new Map<string, number[]>();
+            for (const row of allHistoricalData) {
+                if (row.psgRatio !== null && !isNaN(row.psgRatio)) {
+                    if (!psgHistoryMap.has(row.symbol)) {
+                        psgHistoryMap.set(row.symbol, []);
+                    }
+                    psgHistoryMap.get(row.symbol)!.push(row.psgRatio);
+                }
+            }
+
             const companyMap = new Map(activeCompanies.map(c => [c.symbol, c.ipoDate || null]));
-            const merged = latestStocks.map(stock => ({
-                ...stock,
-                ipoDate: companyMap.get(stock.symbol) || null
-            }));
+            const merged = latestStocks.map(stock => {
+                let psgPercentile: number | null = null;
+                const history = psgHistoryMap.get(stock.symbol);
+                if (history && history.length >= 3 && stock.psgRatio !== null && !isNaN(stock.psgRatio)) {
+                    const countLessOrEqual = history.filter(v => v <= stock.psgRatio!).length;
+                    psgPercentile = Math.max(1, Math.min(99, Math.round((countLessOrEqual / history.length) * 100)));
+                }
+
+                return {
+                    ...stock,
+                    psgPercentile,
+                    ipoDate: companyMap.get(stock.symbol) || null
+                };
+            });
 
             const LATEST_STOCKS_FILE_PATH = path.resolve(__dirname, '..', 'latestStocksCache.json');
             fs.writeFileSync(LATEST_STOCKS_FILE_PATH, JSON.stringify(merged));
-            console.log(`✅ Zapisano plik cache ze skanerem (latestStocksCache.json) - ${merged.length} spółek.`);
+            console.log(`✅ Zapisano plik cache ze skanerem (latestStocksCache.json) z percentylami PSG - ${merged.length} spółek.`);
         }
 
         // Pre-generowanie podsumowań AI dla TOP Perełek

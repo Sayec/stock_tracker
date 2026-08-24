@@ -113,7 +113,18 @@ async function seed() {
     console.log('💾 Odświeżanie companiesCache.json i latestStocksCache.json...');
     const allCompanies = await prisma.company.findMany({ where: { isActive: true } });
     
-    // Najnowsze notowania per spółka
+    // Najnowsze notowania per spółka wraz z obliczaniem psgPercentile
+    const allStockRows = await prisma.stockData.findMany({
+        select: { symbol: true, psgRatio: true }
+    });
+    const historyMap = new Map<string, number[]>();
+    for (const row of allStockRows) {
+        if (row.psgRatio !== null && !isNaN(row.psgRatio)) {
+            if (!historyMap.has(row.symbol)) historyMap.set(row.symbol, []);
+            historyMap.get(row.symbol)!.push(row.psgRatio);
+        }
+    }
+
     const latestStocks: any[] = [];
     for (const comp of allCompanies) {
         const latest = await prisma.stockData.findFirst({
@@ -121,8 +132,16 @@ async function seed() {
             orderBy: { date: 'desc' }
         });
         if (latest) {
+            let psgPercentile: number | null = null;
+            const history = historyMap.get(comp.symbol);
+            if (history && history.length >= 3 && latest.psgRatio !== null && !isNaN(latest.psgRatio)) {
+                const countLessOrEqual = history.filter(v => v <= latest.psgRatio!).length;
+                psgPercentile = Math.max(1, Math.min(99, Math.round((countLessOrEqual / history.length) * 100)));
+            }
+
             latestStocks.push({
                 ...latest,
+                psgPercentile,
                 ipoDate: comp.ipoDate ? comp.ipoDate.toISOString() : null
             });
         }

@@ -10,6 +10,7 @@ export interface StockData {
     cagr2YForward: number;
     psRatioForward?: number;
     psgRatio: number;
+    psgPercentile?: number | null;
     upside: number;
 }
 

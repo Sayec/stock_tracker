@@ -6,7 +6,7 @@ type ScreenerProps = {
     selectedSymbols: string[];
 };
 
-type SortKey = 'symbol' | 'price' | 'upside' | 'cagr2YForward' | 'psgRatio' | 'ipoDate';
+type SortKey = 'symbol' | 'price' | 'upside' | 'cagr2YForward' | 'psgRatio' | 'psgPercentile' | 'ipoDate';
 
 export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenInsight, selectedSymbols }) => {
     const [stocks, setStocks] = useState<any[]>([]);
@@ -17,6 +17,7 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
     const [filterUpside, setFilterUpside] = useState(0);
     const [filterCagr, setFilterCagr] = useState(0);
     const [filterCap, setFilterCap] = useState(10);
+    const [filterDeepValueOnly, setFilterDeepValueOnly] = useState(false);
 
     const isInitialMount = React.useRef(true);
 
@@ -56,7 +57,14 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
         }
     };
 
-    const sortedStocks = [...stocks].sort((a, b) => {
+    const filteredStocks = stocks.filter(stock => {
+        if (filterDeepValueOnly) {
+            return stock.psgPercentile !== null && stock.psgPercentile !== undefined && stock.psgPercentile <= 20;
+        }
+        return true;
+    });
+
+    const sortedStocks = [...filteredStocks].sort((a, b) => {
         let valA = a[sortKey];
         let valB = b[sortKey];
 
@@ -76,14 +84,40 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
     return (
         <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="card-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1.5rem', marginBottom: '0' }}>
-                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: 'var(--accent)' }}>
-                    📊 Pełny Skaner Rynku
-                </h2>
-                <p style={{ margin: '0.5rem 0 1.5rem 0', color: 'var(--text-muted)' }}>
-                    Kliknij w wiersz, aby zobaczyć opis AI i wskaźniki. Użyj przycisku po prawej, aby dodać spółkę do wykresu.
-                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                        <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.8rem', color: 'var(--accent)' }}>
+                            📊 Pełny Skaner Rynku
+                        </h2>
+                        <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)' }}>
+                            Kliknij w wiersz, aby zobaczyć opis AI i wskaźniki. Użyj przycisku po prawej, aby dodać spółkę do wykresu.
+                        </p>
+                    </div>
 
-                <div className="scanner-filters" style={{ display: 'flex', gap: '2rem', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px' }}>
+                    {/* Szybki przełącznik dołków wyceny */}
+                    <button
+                        onClick={() => setFilterDeepValueOnly(!filterDeepValueOnly)}
+                        style={{
+                            padding: '0.6rem 1.1rem',
+                            borderRadius: '8px',
+                            background: filterDeepValueOnly ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${filterDeepValueOnly ? '#10b981' : 'rgba(255,255,255,0.15)'}`,
+                            color: filterDeepValueOnly ? '#10b981' : 'var(--text-muted)',
+                            fontWeight: 'bold',
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <span>💎</span>
+                        <span>Tylko dołki wyceny (PSG &le; P20)</span>
+                    </button>
+                </div>
+
+                <div className="scanner-filters" style={{ display: 'flex', gap: '2rem', background: 'rgba(255,255,255,0.02)', padding: '1.5rem', borderRadius: '12px', marginTop: '1.2rem' }}>
                     <div className="filter-group" style={{ flex: 1 }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Min. Upside: <strong style={{ color: '#fff' }}>{filterUpside}%</strong></label>
                         <input type="range" min="0" max="100" step="5" value={filterUpside} onChange={(e) => setFilterUpside(parseInt(e.target.value))} style={{ width: '100%', accentColor: 'var(--accent)' }} />
@@ -121,7 +155,7 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
                                 2Y CAGR <SortIcon columnKey="cagr2YForward" />
                             </th>
                             <th style={{ padding: '1rem', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'right' }} onClick={() => handleSort('psgRatio')}>
-                                PSG Ratio <SortIcon columnKey="psgRatio" />
+                                PSG Ratio (Percentyl) <SortIcon columnKey="psgRatio" />
                             </th>
                             <th style={{ padding: '1rem', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.1)' }} onClick={() => handleSort('ipoDate')}>
                                 Data IPO <SortIcon columnKey="ipoDate" />
@@ -131,6 +165,7 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
                     <tbody>
                         {sortedStocks.map((stock, idx) => {
                             const isSelected = selectedSymbols.includes(stock.symbol);
+                            const isDip = stock.psgPercentile !== null && stock.psgPercentile !== undefined && stock.psgPercentile <= 20;
 
                             return (
                                 <tr
@@ -146,12 +181,38 @@ export const StockScreener: React.FC<ScreenerProps> = ({ onToggleChart, onOpenIn
                                     onMouseLeave={(e) => (e.currentTarget.style.background = isSelected ? 'rgba(16, 185, 129, 0.05)' : (idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'))}
                                 >
                                     <td style={{ padding: '1rem', fontWeight: 'bold', color: isSelected ? '#10b981' : 'var(--accent)' }}>
-                                        {stock.symbol}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            {isDip && <span title="Dołek wyceny (PSG ponizej 20. percentyla)">💎</span>}
+                                            <span>{stock.symbol}</span>
+                                        </div>
                                     </td>
                                     <td style={{ padding: '1rem', textAlign: 'right', color: '#10b981' }}>${stock.price?.toFixed(2)}</td>
                                     <td style={{ padding: '1rem', textAlign: 'right' }}>{(stock.upside * 100).toFixed(1)}%</td>
                                     <td style={{ padding: '1rem', textAlign: 'right' }}>{(stock.cagr2YForward * 100).toFixed(1)}%</td>
-                                    <td style={{ padding: '1rem', textAlign: 'right' }}>{stock.psgRatio?.toFixed(2)}</td>
+                                    
+                                    {/* Kolumna PSG Ratio z badge'em Percentyla */}
+                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.45rem' }}>
+                                            <span style={{ fontWeight: '500' }}>{stock.psgRatio?.toFixed(2)}</span>
+                                            {stock.psgPercentile !== null && stock.psgPercentile !== undefined && (
+                                                <span 
+                                                    title={`Percentyl historyczny PSG: ${stock.psgPercentile}%. ${isDip ? 'Dołek wyceny (okazja)!' : ''}`}
+                                                    style={{
+                                                        fontSize: '0.72rem',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        fontWeight: 'bold',
+                                                        background: isDip ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                                                        color: isDip ? '#10b981' : 'var(--text-muted)',
+                                                        border: `1px solid ${isDip ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`
+                                                    }}
+                                                >
+                                                    {isDip ? `🔥 P${stock.psgPercentile}` : `P${stock.psgPercentile}`}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
+
                                     <td style={{ padding: '1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <span>{stock.ipoDate ? stock.ipoDate.split('T')[0] : 'Brak'}</span>
                                         <button

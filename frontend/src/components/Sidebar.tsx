@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             >
                                 {label}
                             </button>
-                            
+
                             <button
                                 className={`metric-more-btn ${hasOverlay ? 'has-overlay' : ''}`}
                                 onClick={(e) => {
@@ -168,27 +168,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         const company = companies.find(c => c.symbol === symbol);
                         const isHidden = hiddenSymbols.includes(symbol);
                         return (
-                            <div 
-                                key={symbol} 
+                            <div
+                                key={symbol}
                                 onClick={() => onToggleVisibility(symbol)}
                                 className={`sidebar-company-item ${isHidden ? 'hidden' : ''}`}
                                 title={isHidden ? "Kliknij, aby pokazać na wykresie" : "Kliknij, aby ukryć na wykresie"}
                             >
                                 <div style={{ overflow: 'hidden' }}>
                                     <div style={{ fontWeight: 'bold', color: 'var(--accent)', fontSize: '1.1rem' }}>{symbol}</div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: "200px" }}>
                                         {company?.name}
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <button 
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); onOpenInsightModal(symbol); }}
                                         style={{ background: 'linear-gradient(135deg, #8b5cf6, #d946ef)', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '0.8rem', cursor: 'pointer' }}
                                         title="Generuj podsumowanie AI"
                                     >
                                         ✨ AI
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); onRemoveSymbol(symbol); }}
                                         style={{ background: 'transparent', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', padding: '4px 8px', fontSize: '0.8rem', cursor: 'pointer' }}
                                         title="Usuń spółkę"
