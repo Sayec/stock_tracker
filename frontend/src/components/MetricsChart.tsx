@@ -181,6 +181,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ data, selectedSymbol
             case 'targetConsensus': return { name: 'Price Target ($)', color: '#a855f7', domain: ['auto', 'auto'] };
             case 'upside': return { name: 'Analyst Upside (%)', color: '#10b981', domain: [(min: number) => Math.floor(min - 10), (max: number) => Math.ceil(max + 10)] };
             case 'cagr2YForward': return { name: '2Y CAGR (%)', color: '#38bdf8', domain: [(min: number) => Math.floor(min - 10), (max: number) => Math.ceil(max + 10)] };
+            case 'psRatioForward': return { name: 'P/S 2Y Forward', color: '#6366f1', domain: [0, (max: number) => Math.ceil(max + 1)] };
             case 'psgRatio': return { name: 'PSG Ratio', color: '#f59e0b', domain: [0, (max: number) => max + 0.5] };
             default: return { name: 'Value', color: '#fff', domain: ['auto', 'auto'] };
         }

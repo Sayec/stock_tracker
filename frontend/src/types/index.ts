@@ -8,6 +8,7 @@ export interface StockData {
     price: number;
     targetConsensus?: number;
     cagr2YForward: number;
+    psRatioForward?: number;
     psgRatio: number;
     upside: number;
 }

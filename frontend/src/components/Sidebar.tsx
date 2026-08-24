@@ -50,6 +50,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     2Y CAGR Forward
                 </button>
                 <button
+                    className={activeMetrics.includes('psRatioForward') ? 'active' : ''}
+                    onClick={() => toggleMetric('psRatioForward')}
+                >
+                    P/S 2Y Forward
+                </button>
+                <button
                     className={activeMetrics.includes('psgRatio') ? 'active' : ''}
                     onClick={() => toggleMetric('psgRatio')}
                 >

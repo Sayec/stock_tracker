@@ -133,6 +133,7 @@ app.get('/api/stocks', async (req, res) => {
                 price: curr.price,
                 targetConsensus: curr.targetConsensus,
                 cagr2YForward: parseFloat((curr.cagr2YForward * 100).toFixed(2)),
+                psRatioForward: parseFloat(curr.psRatioForward.toFixed(2)),
                 psgRatio: parseFloat(curr.psgRatio.toFixed(2)),
                 upside: parseFloat((curr.upside * 100).toFixed(2)),
             };

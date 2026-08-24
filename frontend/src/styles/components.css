@@ -67,6 +67,13 @@ button.active {
   border-color: var(--accent);
 }
 
+.metrics-buttons button {
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
 .loading,
 .error {
   text-align: center;
