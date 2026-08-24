@@ -74,6 +74,103 @@ button.active {
   font-weight: 500;
 }
 
+/* Sidebar Metrics Overlay Menu */
+.metric-row {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+
+.metric-btn {
+  flex: 1;
+}
+
+.metric-more-btn {
+  width: 32px;
+  height: 34px;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.metric-more-btn.has-overlay {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.overlay-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 999;
+  margin-top: 0.35rem;
+  width: 220px;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 0.8rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.overlay-menu-title {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--accent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.3rem;
+}
+
+.overlay-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #fff;
+  cursor: pointer;
+}
+
+.overlay-percentile-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-left: 1.4rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.overlay-percentile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.overlay-percentile-input {
+  width: 45px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 4px;
+  text-align: center;
+  padding: 2px;
+}
+
 .loading,
 .error {
   text-align: center;

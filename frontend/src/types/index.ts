@@ -24,3 +24,11 @@ export interface QuoteInfo {
     changePercent: number;
     earningsDate: string | null;
 }
+
+export interface MetricOverlaySettings {
+    showMean: boolean;
+    showMedian: boolean;
+    showChannel: boolean;
+    channelLowerPercentile: number;
+    channelUpperPercentile: number;
+}

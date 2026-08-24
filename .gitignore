@@ -7,3 +7,13 @@ dist/
 /src/generated/prisma
 *.db
 *.db-journal
+
+# Pliki pamięci podręcznej JSON
+*companiesCache.json
+*latestStocksCache.json
+companiesCache.json
+latestStocksCache.json
+src/companiesCache.json
+src/latestStocksCache.json
+dist/companiesCache.json
+dist/latestStocksCache.json

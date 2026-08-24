@@ -7,7 +7,7 @@ import { StockScreener } from './components/StockScreener';
 import { CompanyModal } from './components/CompanyModal';
 import { ReportModal } from './components/ReportModal';
 import { EarningsCalendarModal } from './components/EarningsCalendarModal';
-import type { Company, StockData, QuoteInfo } from './types';
+import type { Company, StockData, QuoteInfo, MetricOverlaySettings } from './types';
 
 function App() {
     const [companies, setCompanies] = useState<Company[]>([]);
@@ -31,6 +31,24 @@ function App() {
 
     const [watchlistQuotes, setWatchlistQuotes] = useState<QuoteInfo[]>([]);
     const [dismissedToasts, setDismissedToasts] = useState<string[]>([]);
+
+    const [overlaySettings, setOverlaySettings] = useState<Record<string, MetricOverlaySettings>>({});
+
+    const handleUpdateOverlaySettings = (metric: string, update: Partial<MetricOverlaySettings>) => {
+        setOverlaySettings(prev => {
+            const current = prev[metric] || {
+                showMean: false,
+                showMedian: false,
+                showChannel: false,
+                channelLowerPercentile: 20,
+                channelUpperPercentile: 80
+            };
+            return {
+                ...prev,
+                [metric]: { ...current, ...update }
+            };
+        });
+    };
 
     // Pobieranie danych dla obserwowanych spółek (w tym earningsDate)
     useEffect(() => {
@@ -253,6 +271,8 @@ function App() {
                         onRemoveSymbol={handleRemoveSymbol}
                         onToggleVisibility={handleToggleVisibility}
                         onOpenInsightModal={setInsightSymbol}
+                        overlaySettings={overlaySettings}
+                        onUpdateOverlaySettings={handleUpdateOverlaySettings}
                     />
                 )}
             </div>
@@ -277,6 +297,7 @@ function App() {
                                     data={mergedData}
                                     selectedSymbols={selectedSymbols.filter(s => !hiddenSymbols.includes(s))}
                                     activeMetrics={activeMetrics}
+                                    overlaySettings={overlaySettings}
                                 />
                             )}
                         </div>
