@@ -7,7 +7,7 @@ import YahooFinance from 'yahoo-finance2';
 import fs from 'fs';
 import path from 'path';
 
-const yahooFinance = new YahooFinance();
+const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const app = express();
 const prisma = new PrismaClient();
@@ -303,6 +303,39 @@ app.post('/api/portfolio/summary', async (req, res) => {
 const quotesCacheMap = new Map<string, { data: any; timestamp: number }>();
 const QUOTES_CACHE_TTL = 15 * 60 * 1000; // 15 minut
 
+const parseToDate = (val: any): Date | null => {
+    if (!val) return null;
+    if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+    const num = typeof val === 'string' ? Number(val) : (typeof val === 'number' ? val : NaN);
+    if (!isNaN(num)) {
+        // Jeśli timestamp w sekundach (< 100_000_000_000), konwertujemy na milisekundy
+        const d = new Date(num < 1e11 ? num * 1000 : num);
+        return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+};
+
+const getNextEarningsDate = (q: any) => {
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
+    const dates = [
+        parseToDate(q.earningsTimestamp),
+        parseToDate(q.earningsTimestampStart),
+        parseToDate(q.earningsTimestampEnd),
+        parseToDate(q.earningsCallTimestampStart),
+        parseToDate(q.earningsCallTimestampEnd)
+    ].filter((d): d is Date => d !== null);
+
+    if (dates.length === 0) return null;
+
+    // Szukamy najbliższej daty dzisiaj lub w przyszłości
+    const futureDates = dates.filter(d => d >= currentDate).sort((a, b) => a.getTime() - b.getTime());
+    if (futureDates.length > 0) return futureDates[0].toISOString();
+
+    return null;
+};
+
 // 6. Endpoint pobierający ceny "na żywo" i daty wyników przez Yahoo Finance (z podgrzewanym cache)
 app.post('/api/portfolio/quotes', async (req, res) => {
     const { symbols } = req.body;
@@ -328,29 +361,36 @@ app.post('/api/portfolio/quotes', async (req, res) => {
             return res.json({ quotes: cachedResults });
         }
 
-        // Pobieramy z Yahoo Finance tylko brakujące/przestarzałe notowania z timeoutem 3.5s
-        const fetchPromise = yahooFinance.quote(missingSymbols);
-        const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 3500));
-        const fetchedQuotes: any[] = await Promise.race([fetchPromise, timeoutPromise]);
+        // Pobieramy z Yahoo Finance z timeoutem 8s
+        let fetchedQuotes: any[] = [];
+        try {
+            const fetchPromise = yahooFinance.quote(missingSymbols);
+            const timeoutPromise = new Promise<any[]>((resolve) => setTimeout(() => resolve([]), 8000));
+            const raceRes = await Promise.race([fetchPromise, timeoutPromise]);
+            if (Array.isArray(raceRes) && raceRes.length > 0) {
+                fetchedQuotes = raceRes;
+            } else if (raceRes && !Array.isArray(raceRes) && (raceRes as any).symbol) {
+                fetchedQuotes = [raceRes];
+            }
+        } catch (err) {
+            console.warn('Batch quote fetch failed, fallback to per-symbol:', err);
+        }
 
-        const getNextEarningsDate = (q: any) => {
-            const currentDate = new Date();
-            currentDate.setHours(0, 0, 0, 0);
-            const dates = [
-                q.earningsTimestamp ? new Date(q.earningsTimestamp) : null,
-                q.earningsTimestampStart ? new Date(q.earningsTimestampStart) : null,
-                q.earningsTimestampEnd ? new Date(q.earningsTimestampEnd) : null
-            ].filter((d): d is Date => d !== null);
-
-            if (dates.length === 0) return null;
-
-            // Szukamy najbliższej daty w przyszłości
-            const futureDates = dates.filter(d => d >= currentDate).sort((a, b) => a.getTime() - b.getTime());
-            if (futureDates.length > 0) return futureDates[0].toISOString();
-
-            // Jeśli wszystkie daty z Yahoo dotyczą przeszłości, to brak znanej daty KOLEJNYCH wyników
-            return null;
-        };
+        // Fallback: jeśli batch nie zwrócił wszystkich brakujących, spróbujmy pojedynczo dla braków
+        const fetchedSymbols = new Set(fetchedQuotes.map(q => q.symbol));
+        const stillMissing = missingSymbols.filter(s => !fetchedSymbols.has(s));
+        if (stillMissing.length > 0 && fetchedQuotes.length === 0) {
+            try {
+                const settled = await Promise.allSettled(stillMissing.map(sym => yahooFinance.quote(sym)));
+                for (const item of settled) {
+                    if (item.status === 'fulfilled' && item.value) {
+                        fetchedQuotes.push(item.value);
+                    }
+                }
+            } catch (fallbackErr) {
+                console.warn('Per-symbol fetch error:', fallbackErr);
+            }
+        }
 
         const newResults = fetchedQuotes.map(q => {
             const mapped = {
@@ -363,8 +403,20 @@ app.post('/api/portfolio/quotes', async (req, res) => {
             return mapped;
         });
 
-        const allResults = [...cachedResults, ...newResults];
-        res.json({ quotes: allResults });
+        // Stale-While-Revalidate fallback: dla symboli, których nie udało się teraz pobrać,
+        // jeśli mamy poprzednią wersję w cache (nawet starszą niż 15m), zachowajmy ją
+        const newResultsSymbols = new Set(newResults.map(r => r.symbol));
+        const finalResults = [...cachedResults, ...newResults];
+        for (const sym of missingSymbols) {
+            if (!newResultsSymbols.has(sym)) {
+                const stale = quotesCacheMap.get(sym);
+                if (stale && !finalResults.some(r => r.symbol === sym)) {
+                    finalResults.push(stale.data);
+                }
+            }
+        }
+
+        res.json({ quotes: finalResults });
     } catch (error) {
         console.error('Błąd pobierania notowań z Yahoo Finance:', error);
         res.status(500).json({ error: 'Błąd pobierania notowań z Yahoo' });
