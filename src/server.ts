@@ -10,7 +10,17 @@ import path from 'path';
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
 
 const app = express();
-const prisma = new PrismaClient();
+const dbUrl = process.env.DATABASE_URL;
+const prisma = dbUrl && !dbUrl.includes('connection_limit')
+    ? new PrismaClient({
+        datasources: {
+            db: {
+                url: `${dbUrl}${dbUrl.includes('?') ? '&' : '?'}connection_limit=3`
+            }
+        }
+    })
+    : new PrismaClient();
+
 const PORT = process.env.PORT || 3000;
 
 app.use(compression());
@@ -53,6 +63,11 @@ let latestStocksMemCache: any[] | null = null;
 let lastCompaniesFileMtime: number = 0;
 let lastLatestStocksFileMtime: number = 0;
 
+// === IN-MEMORY CACHE DLA HISTORII SPÓŁEK (/api/stocks?symbol=...) ===
+const stocksHistoryCacheMap = new Map<string, { data: any; timestamp: number }>();
+const STOCKS_HISTORY_TTL = 60 * 60 * 1000; // 60 minut ważności
+const MAX_STOCKS_HISTORY_CACHE = 150; // maks 150 spółek w RAM (zaledwie ~1.5 MB)
+
 function checkAndReloadCaches() {
     try {
         if (fs.existsSync(CACHE_FILE_PATH)) {
@@ -73,7 +88,9 @@ function checkAndReloadCaches() {
             if (stats.mtimeMs > lastLatestStocksFileMtime) {
                 latestStocksMemCache = JSON.parse(fs.readFileSync(LATEST_STOCKS_FILE_PATH, 'utf-8'));
                 lastLatestStocksFileMtime = stats.mtimeMs;
-                console.log(`🔄 [BACKGROUND RELOAD] Przeładowano latestStocksCache.json w tle! Wczytano ${latestStocksMemCache!.length} spółek.`);
+                // Wyczyszczenie cache historii spółek przy nowym zrzucie dziennym
+                stocksHistoryCacheMap.clear();
+                console.log(`🔄 [BACKGROUND RELOAD] Przeładowano latestStocksCache.json w tle! Wczytano ${latestStocksMemCache!.length} spółek. Wyczyszczono cache historii.`);
             }
         }
     } catch (e) {
@@ -141,10 +158,18 @@ app.get('/api/stocks', async (req, res) => {
         return res.status(400).json({ error: 'Należy podać parametr symbol' });
     }
 
+    const symUpper = symbol.toUpperCase();
+    const cached = stocksHistoryCacheMap.get(symUpper);
+    const now = Date.now();
+    if (cached && (now - cached.timestamp < STOCKS_HISTORY_TTL)) {
+        addPerf?.(`RAM_CACHE_HIT (${cached.data.length} rows)`);
+        return res.json(cached.data);
+    }
+
     try {
         const tDb = Date.now();
         const data = await prisma.stockData.findMany({
-            where: { symbol: symbol },
+            where: { symbol: symUpper },
             orderBy: { date: 'asc' }
         });
         addPerf?.(`DB_QUERY: ${Date.now() - tDb}ms (${data.length} rows)`);
@@ -171,6 +196,13 @@ app.get('/api/stocks', async (req, res) => {
                 return acc;
             }, {} as Record<string, typeof rawFormatted[0]>)
         );
+
+        // Zapis do in-memory cache z kontrolą rozmiaru (LRU/FIFO)
+        if (stocksHistoryCacheMap.size >= MAX_STOCKS_HISTORY_CACHE) {
+            const oldestKey = stocksHistoryCacheMap.keys().next().value;
+            if (oldestKey) stocksHistoryCacheMap.delete(oldestKey);
+        }
+        stocksHistoryCacheMap.set(symUpper, { data: formatted, timestamp: now });
 
         res.json(formatted);
     } catch (error) {
