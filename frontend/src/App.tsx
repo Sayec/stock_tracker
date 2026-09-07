@@ -9,9 +9,50 @@ import { ReportModal } from './components/ReportModal';
 import { EarningsCalendarModal } from './components/EarningsCalendarModal';
 import type { Company, StockData, QuoteInfo, MetricOverlaySettings } from './types';
 
+// Pomocnik do parsowania stanu z aktualnego adresu URL i localStorage
+function parseInitialRoute() {
+    const pathname = window.location.pathname;
+    const searchParams = new URLSearchParams(window.location.search);
+
+    // Wykrywanie widoku spółki: /company/:symbol lub /symbols/:symbol
+    const companyMatch = pathname.match(/^\/(?:company|symbols)\/([A-Za-z0-9._-]+)/i);
+    const initialCompany = companyMatch ? companyMatch[1].toUpperCase() : null;
+
+    // Wykrywanie aktywnego widoku głównego
+    let initialView: 'chart' | 'screener' = 'screener';
+    if (pathname.startsWith('/chart') || searchParams.get('from') === 'chart') {
+        initialView = 'chart';
+    } else if (pathname.startsWith('/screener')) {
+        initialView = 'screener';
+    }
+
+    // Wykrywanie spółek na wykresie: najpierw z URL query (?symbols=...), a fallback z localStorage
+    const symbolsParam = searchParams.get('symbols');
+    let initialSymbols: string[] = [];
+    if (symbolsParam) {
+        initialSymbols = symbolsParam.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        try {
+            localStorage.setItem('selectedChartSymbols', JSON.stringify(initialSymbols));
+        } catch {}
+    } else {
+        try {
+            const saved = localStorage.getItem('selectedChartSymbols');
+            if (saved) initialSymbols = JSON.parse(saved);
+        } catch {}
+    }
+
+    return {
+        initialCompany,
+        initialView,
+        initialSymbols
+    };
+}
+
 function App() {
+    const initialRoute = parseInitialRoute();
+
     const [companies, setCompanies] = useState<Company[]>([]);
-    const [selectedSymbols, setSelectedSymbols] = useState<string[]>([]);
+    const [selectedSymbols, setSelectedSymbols] = useState<string[]>(initialRoute.initialSymbols);
     const [hiddenSymbols, setHiddenSymbols] = useState<string[]>([]);
     const [watchlist, setWatchlist] = useState<string[]>(() => {
         const saved = localStorage.getItem('trackedStocks');
@@ -23,9 +64,9 @@ function App() {
     const [loadingData, setLoadingData] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [activeMetrics, setActiveMetrics] = useState<string[]>(['upside']);
-    const [insightSymbol, setInsightSymbol] = useState<string | null>(null);
+    const [insightSymbol, setInsightSymbol] = useState<string | null>(initialRoute.initialCompany);
 
-    const [viewMode, setViewMode] = useState<'chart' | 'screener'>('screener');
+    const [viewMode, setViewMode] = useState<'chart' | 'screener'>(initialRoute.initialView);
     const [reportModalOpen, setReportModalOpen] = useState(false);
     const [calendarModalOpen, setCalendarModalOpen] = useState(false);
 
@@ -33,6 +74,92 @@ function App() {
     const [dismissedToasts, setDismissedToasts] = useState<string[]>([]);
 
     const [overlaySettings, setOverlaySettings] = useState<Record<string, MetricOverlaySettings>>({});
+
+    // Pomocnik do budowania URL na podstawie stanu aplikacji
+    const buildUrl = (view: 'chart' | 'screener', company: string | null, symbols: string[]) => {
+        let path = '';
+        const params = new URLSearchParams();
+
+        if (company) {
+            path = `/company/${company}`;
+            if (view === 'chart') {
+                params.set('from', 'chart');
+                if (symbols.length > 0) {
+                    params.set('symbols', symbols.join(','));
+                }
+            }
+        } else if (view === 'chart') {
+            path = '/chart';
+            if (symbols.length > 0) {
+                params.set('symbols', symbols.join(','));
+            }
+        } else {
+            path = '/screener';
+        }
+
+        const query = params.toString() ? `?${params.toString()}` : '';
+        return `${path}${query}`;
+    };
+
+    // Nawigacja: przełączanie widoków głównych (Skaner / Wykresy)
+    const handleSwitchView = (newView: 'chart' | 'screener', overrideSymbols?: string[]) => {
+        const symbolsToUse = overrideSymbols ?? selectedSymbols;
+        setViewMode(newView);
+        setInsightSymbol(null);
+        const targetUrl = buildUrl(newView, null, symbolsToUse);
+        window.history.pushState({ view: newView }, '', targetUrl);
+    };
+
+    // Nawigacja: otwieranie karty spółki
+    const handleOpenInsight = (symbol: string) => {
+        const sym = symbol.toUpperCase();
+        setInsightSymbol(sym);
+        const targetUrl = buildUrl(viewMode, sym, selectedSymbols);
+        window.history.pushState({ view: viewMode, company: sym }, '', targetUrl);
+    };
+
+    // Nawigacja: zamykanie karty spółki
+    const handleCloseInsight = () => {
+        setInsightSymbol(null);
+        const targetUrl = buildUrl(viewMode, null, selectedSymbols);
+        window.history.pushState({ view: viewMode }, '', targetUrl);
+    };
+
+    // Synchronizacja spółek na wykresie z localStorage i query params
+    const updateSelectedSymbolsAndUrl = (newSymbols: string[]) => {
+        setSelectedSymbols(newSymbols);
+        try {
+            localStorage.setItem('selectedChartSymbols', JSON.stringify(newSymbols));
+        } catch {}
+
+        // Aktualizacja URL bez tworzenia nowej pozycji w historii
+        const targetUrl = buildUrl(viewMode, insightSymbol, newSymbols);
+        window.history.replaceState({ view: viewMode, company: insightSymbol }, '', targetUrl);
+    };
+
+    // Obsługa przycisków Wstecz / Dalej w przeglądarce (popstate)
+    useEffect(() => {
+        const handlePopState = () => {
+            const route = parseInitialRoute();
+            setViewMode(route.initialView);
+            setInsightSymbol(route.initialCompany);
+            if (route.initialSymbols.length > 0) {
+                setSelectedSymbols(route.initialSymbols);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    // Normalizacja URL przy pierwszym wejściu (np. '/' -> '/screener')
+    useEffect(() => {
+        const targetUrl = buildUrl(initialRoute.initialView, initialRoute.initialCompany, initialRoute.initialSymbols);
+        const currentFull = window.location.pathname + window.location.search;
+        if (currentFull !== targetUrl) {
+            window.history.replaceState({ view: initialRoute.initialView, company: initialRoute.initialCompany }, '', targetUrl);
+        }
+    }, []);
 
     const handleUpdateOverlaySettings = (metric: string, update: Partial<MetricOverlaySettings>) => {
         setOverlaySettings(prev => {
@@ -106,16 +233,16 @@ function App() {
     };
 
     const handleSelectSymbol = (symbol: string) => {
-        setSelectedSymbols(prev =>
-            prev.includes(symbol)
-                ? prev.filter(s => s !== symbol)
-                : [...prev, symbol]
-        );
+        const newSymbols = selectedSymbols.includes(symbol)
+            ? selectedSymbols.filter(s => s !== symbol)
+            : [...selectedSymbols, symbol];
+        updateSelectedSymbolsAndUrl(newSymbols);
     };
 
     const handleRemoveSymbol = (symbol: string) => {
-        setSelectedSymbols(prev => prev.filter(s => s !== symbol));
+        const newSymbols = selectedSymbols.filter(s => s !== symbol);
         setHiddenSymbols(prev => prev.filter(s => s !== symbol));
+        updateSelectedSymbolsAndUrl(newSymbols);
     };
 
     const handleToggleVisibility = (symbol: string) => {
@@ -211,19 +338,19 @@ function App() {
 
                 <SearchBar
                     companies={companies}
-                    onSelectCompany={setInsightSymbol}
+                    onSelectCompany={handleOpenInsight}
                 />
 
                 <div className="view-mode-toggles">
                     <button
                         className={`view-toggle-btn ${viewMode === 'screener' ? 'active' : ''}`}
-                        onClick={() => setViewMode('screener')}
+                        onClick={() => handleSwitchView('screener')}
                     >
                         🏆 Skaner
                     </button>
                     <button
                         className={`view-toggle-btn ${viewMode === 'chart' ? 'active' : ''}`}
-                        onClick={() => setViewMode('chart')}
+                        onClick={() => handleSwitchView('chart')}
                     >
                         📈 Wykresy
                     </button>
@@ -270,7 +397,7 @@ function App() {
                         toggleMetric={toggleMetric}
                         onRemoveSymbol={handleRemoveSymbol}
                         onToggleVisibility={handleToggleVisibility}
-                        onOpenInsightModal={setInsightSymbol}
+                        onOpenInsightModal={handleOpenInsight}
                         overlaySettings={overlaySettings}
                         onUpdateOverlaySettings={handleUpdateOverlaySettings}
                     />
@@ -283,7 +410,7 @@ function App() {
 
                 {/* Kontener Skanera */}
                 <div className="main-content-view" style={{ display: viewMode === 'screener' ? 'flex' : 'none' }}>
-                    <StockScreener onToggleChart={handleSelectSymbol} onOpenInsight={setInsightSymbol} selectedSymbols={selectedSymbols} />
+                    <StockScreener onToggleChart={handleSelectSymbol} onOpenInsight={handleOpenInsight} selectedSymbols={selectedSymbols} />
                 </div>
 
                 {/* Kontener Wykresów */}
@@ -315,14 +442,14 @@ function App() {
                     <CompanyModal
                         symbol={insightSymbol}
                         isSelected={selectedSymbols.includes(insightSymbol)}
-                        onClose={() => setInsightSymbol(null)}
+                        onClose={handleCloseInsight}
                         onToggleChart={() => handleSelectSymbol(insightSymbol)}
                         onGoToChart={() => {
-                            if (!selectedSymbols.includes(insightSymbol)) {
-                                handleSelectSymbol(insightSymbol);
-                            }
-                            setViewMode('chart');
-                            setInsightSymbol(null);
+                            const nextSymbols = selectedSymbols.includes(insightSymbol)
+                                ? selectedSymbols
+                                : [...selectedSymbols, insightSymbol];
+                            updateSelectedSymbolsAndUrl(nextSymbols);
+                            handleSwitchView('chart', nextSymbols);
                         }}
                         isWatched={watchlist.includes(insightSymbol)}
                         onToggleWatch={() => handleToggleWatch(insightSymbol)}
@@ -334,10 +461,11 @@ function App() {
                         watchlist={watchlist}
                         onClose={() => setReportModalOpen(false)}
                         onGoToChart={(symbol) => {
-                            if (!selectedSymbols.includes(symbol)) {
-                                handleSelectSymbol(symbol);
-                            }
-                            setViewMode('chart');
+                            const nextSymbols = selectedSymbols.includes(symbol)
+                                ? selectedSymbols
+                                : [...selectedSymbols, symbol];
+                            updateSelectedSymbolsAndUrl(nextSymbols);
+                            handleSwitchView('chart', nextSymbols);
                             setReportModalOpen(false);
                         }}
                     />
@@ -347,7 +475,7 @@ function App() {
                     <EarningsCalendarModal
                         quotes={watchlistQuotes}
                         onClose={() => setCalendarModalOpen(false)}
-                        onGoToCompany={(symbol) => setInsightSymbol(symbol)}
+                        onGoToCompany={(symbol) => handleOpenInsight(symbol)}
                     />
                 )}
 

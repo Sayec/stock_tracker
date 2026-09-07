@@ -17,12 +17,29 @@ app.use(compression());
 app.use(cors());
 app.use(express.json());
 
+// Szybkie odrzucanie botów i skanerów podatności, by nie obciążały wątku Node.js i bazy danych
+const BOT_PROBE_REGEX = /\.(env|git|htaccess|sql|bak|yaml|yml|key)|phpinfo|wp-login|actuator|graphql|graphiql|telescope|_profiler|swagger|openapi/i;
+
+app.use((req, res, next) => {
+    if (BOT_PROBE_REGEX.test(req.originalUrl)) {
+        return res.status(404).send('Not Found');
+    }
+    next();
+});
+
 // Middleware do mierzenia czasu odpowiedzi i weryfikacji wydajności
 app.use((req, res, next) => {
     const start = Date.now();
+    (req as any).perfLog = [] as string[];
+    (req as any).addPerfLog = (msg: string) => (req as any).perfLog.push(msg);
+
     res.on('finish', () => {
         const duration = Date.now() - start;
-        console.log(`⏱️  [API] ${req.method} ${req.originalUrl} - ${duration}ms`);
+        const slowWarning = duration > 1000 ? ` ⚠️ [SLOW REQUEST > 1000ms]` : '';
+        const details = (req as any).perfLog && (req as any).perfLog.length > 0 
+            ? ` (${(req as any).perfLog.join(' | ')})` 
+            : '';
+        console.log(`⏱️  [API] ${req.method} ${req.originalUrl} - ${duration}ms${slowWarning}${details}`);
     });
     next();
 });
@@ -35,6 +52,7 @@ let companiesMemCache: any[] | null = null;
 let latestStocksMemCache: any[] | null = null;
 let lastCompaniesFileMtime: number = 0;
 let lastLatestStocksFileMtime: number = 0;
+
 function checkAndReloadCaches() {
     try {
         if (fs.existsSync(CACHE_FILE_PATH)) {
@@ -83,17 +101,21 @@ try {
 checkAndReloadCaches();
 
 app.get('/api/companies', async (req, res) => {
+    const addPerf = (req as any).addPerfLog;
     try {
         if (companiesMemCache) {
+            addPerf?.('RAM_CACHE_HIT');
             return res.json(companiesMemCache);
         }
 
         // Szybki fallback z bazy danych (tylko aktywne spółki)
+        const tDb = Date.now();
         const companies = await prisma.company.findMany({
             where: { isActive: true },
             select: { symbol: true, name: true },
             orderBy: { symbol: 'asc' }
         });
+        addPerf?.(`DB_QUERY: ${Date.now() - tDb}ms`);
 
         // Zapis do pliku i załadowanie do pamięci
         try {
@@ -113,16 +135,19 @@ app.get('/api/companies', async (req, res) => {
 // 2. Endpoint zwracający historię wskaźników dla KONKRETNEJ spółki
 app.get('/api/stocks', async (req, res) => {
     const symbol = req.query.symbol as string;
+    const addPerf = (req as any).addPerfLog;
 
     if (!symbol) {
         return res.status(400).json({ error: 'Należy podać parametr symbol' });
     }
 
     try {
+        const tDb = Date.now();
         const data = await prisma.stockData.findMany({
             where: { symbol: symbol },
             orderBy: { date: 'asc' }
         });
+        addPerf?.(`DB_QUERY: ${Date.now() - tDb}ms (${data.length} rows)`);
 
         // Formatowanie pod wykres (z uwzględnieniem strefy czasowej)
         const rawFormatted = data.map(curr => {
@@ -157,11 +182,14 @@ app.get('/api/stocks', async (req, res) => {
 // 3. Endpoint pobierający / generujący podsumowanie AI dla spółki
 app.get('/api/companies/:symbol/summary', async (req, res) => {
     const symbol = req.params.symbol;
+    const addPerf = (req as any).addPerfLog;
 
     try {
+        const tDb = Date.now();
         const company = await prisma.company.findUnique({
             where: { symbol }
         });
+        addPerf?.(`DB_LOOKUP: ${Date.now() - tDb}ms`);
 
         if (!company) {
             return res.status(404).json({ error: 'Spółka nie istnieje' });
@@ -174,17 +202,21 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
             (now.getTime() - company.aiSummaryDate.getTime() < SEVEN_DAYS);
 
         if (company.aiSummary && isFresh) {
-            // Zwracamy z pamięci cache (Baza danych)
+            addPerf?.('AI_CACHE_HIT (DB)');
             return res.json({ aiSummary: company.aiSummary });
         }
 
         // Jeśli brakuje lub jest nieaktualne, odpytujemy AI
+        const tHistory = Date.now();
         const data = await prisma.stockData.findMany({
             where: { symbol: symbol },
             orderBy: { date: 'asc' }
         });
+        addPerf?.(`DB_HISTORY: ${Date.now() - tHistory}ms`);
 
+        const tAi = Date.now();
         const newSummary = await generateCompanySummary(company.name, data);
+        addPerf?.(`AI_GENERATE_GEMINI: ${Date.now() - tAi}ms`);
 
         // Zapisujemy nowy wynik w bazie
         await prisma.company.update({
@@ -204,12 +236,14 @@ app.get('/api/companies/:symbol/summary', async (req, res) => {
 
 // 4. Endpoint do "Dzisiejszych Perełek" (dynamiczny skaner rynku)
 app.get('/api/stocks/top', async (req, res) => {
+    const addPerf = (req as any).addPerfLog;
     try {
         const upsideLimit = req.query.upside !== undefined ? parseFloat(req.query.upside as string) : 0.35;
         const cagrLimit = req.query.cagr !== undefined ? parseFloat(req.query.cagr as string) : 0.20;
         const marketCapLimit = req.query.marketCap !== undefined ? parseFloat(req.query.marketCap as string) : 10000000000;
 
         if (latestStocksMemCache) {
+            addPerf?.(`RAM_CACHE_HIT (${latestStocksMemCache.length} items)`);
             const filtered = latestStocksMemCache.filter((s: any) =>
                 s.upside >= upsideLimit &&
                 s.cagr2YForward >= cagrLimit &&
@@ -219,6 +253,7 @@ app.get('/api/stocks/top', async (req, res) => {
         }
 
         console.log('⚠️ [API] Brak pliku latestStocksCache.json! Wykonuję ciężkie zapytanie do bazy danych PostgreSQL...');
+        const tFallback = Date.now();
         const latestRecord = await prisma.stockData.findFirst({
             orderBy: { date: 'desc' },
             select: { date: true }
@@ -260,6 +295,7 @@ app.get('/api/stocks/top', async (req, res) => {
 
         // Zapisz WSZYSTKIE spółki do RAM-u — filtrowanie odbywa się w pamięci
         latestStocksMemCache = allMerged;
+        addPerf?.(`DB_FALLBACK_SCAN: ${Date.now() - tFallback}ms (${allMerged.length} items)`);
         console.log(`✅ [/api/stocks/top] Załadowano ${allMerged.length} spółek do RAM-u z bazy danych (fallback).`);
 
         // Zwróć przefiltrowane dane
@@ -339,6 +375,7 @@ const getNextEarningsDate = (q: any) => {
 // 6. Endpoint pobierający ceny "na żywo" i daty wyników przez Yahoo Finance (z podgrzewanym cache)
 app.post('/api/portfolio/quotes', async (req, res) => {
     const { symbols } = req.body;
+    const addPerf = (req as any).addPerfLog;
 
     if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
         return res.status(400).json({ error: 'Należy przekazać tablicę symboli' });
@@ -358,10 +395,12 @@ app.post('/api/portfolio/quotes', async (req, res) => {
         }
 
         if (missingSymbols.length === 0) {
+            addPerf?.(`ALL_QUOTES_IN_CACHE (${cachedResults.length})`);
             return res.json({ quotes: cachedResults });
         }
 
         // Pobieramy z Yahoo Finance z timeoutem 8s
+        const tYahoo = Date.now();
         let fetchedQuotes: any[] = [];
         try {
             const fetchPromise = yahooFinance.quote(missingSymbols);
@@ -391,6 +430,7 @@ app.post('/api/portfolio/quotes', async (req, res) => {
                 console.warn('Per-symbol fetch error:', fallbackErr);
             }
         }
+        addPerf?.(`YAHOO_API: ${Date.now() - tYahoo}ms (fetched ${fetchedQuotes.length}/${missingSymbols.length}, cacheHits ${cachedResults.length})`);
 
         const newResults = fetchedQuotes.map(q => {
             const mapped = {
