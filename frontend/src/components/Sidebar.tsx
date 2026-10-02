@@ -12,6 +12,8 @@ type SidebarProps = {
     onOpenInsightModal: (symbol: string) => void;
     overlaySettings: Record<string, MetricOverlaySettings>;
     onUpdateOverlaySettings: (metric: string, settings: Partial<MetricOverlaySettings>) => void;
+    title?: string;
+    isWatchlistMode?: boolean;
 };
 
 const METRICS_CONFIG = [
@@ -33,7 +35,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onToggleVisibility,
     onOpenInsightModal,
     overlaySettings,
-    onUpdateOverlaySettings
+    onUpdateOverlaySettings,
+    title,
+    isWatchlistMode
 }) => {
     const [openMenuMetric, setOpenMenuMetric] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -160,8 +164,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Lista wybranych spółek */}
             <div className="card" style={{ padding: '0.8rem 1rem' }}>
-                <h3 style={{ margin: '0 0 0.8rem 0', fontSize: '1rem', color: 'var(--text-main)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
-                    Wybrane spółki ({selectedSymbols.length})
+                <h3 style={{ margin: '0 0 0.8rem 0', fontSize: '1rem', color: isWatchlistMode ? '#c084fc' : 'var(--text-main)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>{title || `Wybrane spółki (${selectedSymbols.length})`}</span>
+                    {isWatchlistMode && <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: 'rgba(192, 132, 252, 0.15)', borderRadius: '4px', color: '#c084fc', border: '1px solid rgba(192, 132, 252, 0.3)' }}>Portfel</span>}
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {selectedSymbols.map(symbol => {
@@ -191,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onRemoveSymbol(symbol); }}
                                         style={{ background: 'transparent', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '4px', padding: '4px 8px', fontSize: '0.8rem', cursor: 'pointer' }}
-                                        title="Usuń spółkę"
+                                        title={isWatchlistMode ? "Usuń z obserwowanych" : "Usuń spółkę"}
                                     >
                                         ✕
                                     </button>
@@ -201,7 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     })}
                     {selectedSymbols.length === 0 && (
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', fontStyle: 'italic' }}>
-                            Brak wybranych spółek.
+                            {isWatchlistMode ? "Brak obserwowanych spółek." : "Brak wybranych spółek."}
                         </div>
                     )}
                 </div>

@@ -5,9 +5,17 @@ type ReportModalProps = {
     watchlist: string[];
     onClose: () => void;
     onGoToChart: (symbol: string) => void;
+    onGoToWatchlistChart: () => void;
+    onOpenCompany: (symbol: string) => void;
 };
 
-export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, onGoToChart }) => {
+export const ReportModal: React.FC<ReportModalProps> = ({ 
+    watchlist, 
+    onClose, 
+    onGoToChart,
+    onGoToWatchlistChart,
+    onOpenCompany
+}) => {
     const [quotes, setQuotes] = useState<QuoteInfo[]>([]);
     const [loadingQuotes, setLoadingQuotes] = useState(true);
     
@@ -64,7 +72,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, on
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '820px', width: '92%', maxHeight: '90vh', overflowY: 'auto' }}>
                 <button className="modal-close" onClick={onClose}>×</button>
                 <div className="modal-header-container">
                     <h2 className="modal-title modal-title-report">
@@ -73,7 +81,34 @@ export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, on
                 </div>
                 
                 <div style={{ marginBottom: '2rem' }}>
-                    <h3 style={{ color: 'var(--text-main)', marginBottom: '1rem', fontSize: '1.2rem' }}>Twoje obserwowane spółki ({watchlist.length})</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.8rem' }}>
+                        <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.2rem' }}>
+                            Twoje obserwowane spółki ({watchlist.length})
+                        </h3>
+                        {watchlist.length > 0 && (
+                            <button
+                                onClick={onGoToWatchlistChart}
+                                style={{
+                                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(236, 72, 153, 0.25))',
+                                    color: '#c084fc',
+                                    border: '1px solid rgba(139, 92, 246, 0.5)',
+                                    padding: '0.45rem 0.9rem',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 'bold',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem',
+                                    boxShadow: '0 2px 10px rgba(139, 92, 246, 0.2)'
+                                }}
+                                title="Przejdź do dedykowanego wykresu ze wszystkimi obserwowanymi spółkami"
+                            >
+                                📈 Wykres wszystkich obserwowanych
+                            </button>
+                        )}
+                    </div>
+
                     {loadingQuotes ? (
                         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Pobieranie aktualnych notowań...</div>
                     ) : (
@@ -83,7 +118,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, on
                                     <th className="report-th">Symbol</th>
                                     <th className="report-th" style={{ textAlign: 'right' }}>Cena</th>
                                     <th className="report-th" style={{ textAlign: 'right' }}>Zmiana (1D)</th>
-                                    <th className="report-th" style={{ textAlign: 'center' }}>Akcja</th>
+                                    <th className="report-th" style={{ textAlign: 'center' }}>Akcje</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -95,21 +130,42 @@ export const ReportModal: React.FC<ReportModalProps> = ({ watchlist, onClose, on
                                             {q.changePercent >= 0 ? '+' : ''}{q.changePercent?.toFixed(2)}%
                                         </td>
                                         <td className="report-td" style={{ textAlign: 'center' }}>
-                                            <button 
-                                                className="btn-chart"
-                                                onClick={() => onGoToChart(q.symbol)}
-                                                style={{
-                                                    background: 'rgba(139, 92, 246, 0.1)',
-                                                    color: '#8b5cf6',
-                                                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                                                    padding: '0.4rem 0.8rem',
-                                                    borderRadius: '6px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.85rem'
-                                                }}
-                                            >
-                                                📈 Wykres
-                                            </button>
+                                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+                                                <button 
+                                                    className="btn-desc"
+                                                    onClick={() => onOpenCompany(q.symbol)}
+                                                    title={`Zobacz raport i podsumowanie AI dla ${q.symbol}`}
+                                                    style={{
+                                                        background: 'rgba(255, 255, 255, 0.08)',
+                                                        color: 'var(--text-main)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                        padding: '0.4rem 0.75rem',
+                                                        borderRadius: '6px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.85rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem'
+                                                    }}
+                                                >
+                                                    📄 Opis
+                                                </button>
+                                                <button 
+                                                    className="btn-chart"
+                                                    onClick={() => onGoToChart(q.symbol)}
+                                                    style={{
+                                                        background: 'rgba(139, 92, 246, 0.1)',
+                                                        color: '#8b5cf6',
+                                                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                                                        padding: '0.4rem 0.75rem',
+                                                        borderRadius: '6px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.85rem'
+                                                    }}
+                                                >
+                                                    📈 Wykres
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

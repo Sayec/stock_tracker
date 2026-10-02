@@ -19,8 +19,10 @@ function parseInitialRoute() {
     const initialCompany = companyMatch ? companyMatch[1].toUpperCase() : null;
 
     // Wykrywanie aktywnego widoku głównego
-    let initialView: 'chart' | 'screener' = 'screener';
-    if (pathname.startsWith('/chart') || searchParams.get('from') === 'chart') {
+    let initialView: 'chart' | 'screener' | 'watchlist' = 'screener';
+    if (pathname.startsWith('/watchlist-chart') || searchParams.get('from') === 'watchlist') {
+        initialView = 'watchlist';
+    } else if (pathname.startsWith('/chart') || searchParams.get('from') === 'chart') {
         initialView = 'chart';
     } else if (pathname.startsWith('/screener')) {
         initialView = 'screener';
@@ -66,7 +68,7 @@ function App() {
     const [activeMetrics, setActiveMetrics] = useState<string[]>(['upside']);
     const [insightSymbol, setInsightSymbol] = useState<string | null>(initialRoute.initialCompany);
 
-    const [viewMode, setViewMode] = useState<'chart' | 'screener'>(initialRoute.initialView);
+    const [viewMode, setViewMode] = useState<'chart' | 'screener' | 'watchlist'>(initialRoute.initialView);
     const [reportModalOpen, setReportModalOpen] = useState(false);
     const [calendarModalOpen, setCalendarModalOpen] = useState(false);
 
@@ -76,7 +78,7 @@ function App() {
     const [overlaySettings, setOverlaySettings] = useState<Record<string, MetricOverlaySettings>>({});
 
     // Pomocnik do budowania URL na podstawie stanu aplikacji
-    const buildUrl = (view: 'chart' | 'screener', company: string | null, symbols: string[]) => {
+    const buildUrl = (view: 'chart' | 'screener' | 'watchlist', company: string | null, symbols: string[]) => {
         let path = '';
         const params = new URLSearchParams();
 
@@ -87,7 +89,11 @@ function App() {
                 if (symbols.length > 0) {
                     params.set('symbols', symbols.join(','));
                 }
+            } else if (view === 'watchlist') {
+                params.set('from', 'watchlist');
             }
+        } else if (view === 'watchlist') {
+            path = '/watchlist-chart';
         } else if (view === 'chart') {
             path = '/chart';
             if (symbols.length > 0) {
@@ -101,8 +107,8 @@ function App() {
         return `${path}${query}`;
     };
 
-    // Nawigacja: przełączanie widoków głównych (Skaner / Wykresy)
-    const handleSwitchView = (newView: 'chart' | 'screener', overrideSymbols?: string[]) => {
+    // Nawigacja: przełączanie widoków głównych (Skaner / Wykresy / Obserwowane)
+    const handleSwitchView = (newView: 'chart' | 'screener' | 'watchlist', overrideSymbols?: string[]) => {
         const symbolsToUse = overrideSymbols ?? selectedSymbols;
         setViewMode(newView);
         setInsightSymbol(null);
@@ -282,13 +288,14 @@ function App() {
 
     // Pobranie danych wykresu
     useEffect(() => {
-        if (selectedSymbols.length === 0) return;
+        const symbolsToFetch = viewMode === 'watchlist' ? watchlist : selectedSymbols;
+        if (symbolsToFetch.length === 0) return;
 
         const fetchData = async () => {
             setLoadingData(true);
             try {
                 // Filtrujemy te symbole, których jeszcze nie mamy w state (cache)
-                const missingSymbols = selectedSymbols.filter(s => !stockDataMap[s]);
+                const missingSymbols = symbolsToFetch.filter(s => !stockDataMap[s]);
 
                 if (missingSymbols.length > 0) {
                     const newDataMap = { ...stockDataMap };
@@ -309,11 +316,12 @@ function App() {
             }
         };
         fetchData();
-    }, [selectedSymbols]);
+    }, [selectedSymbols, watchlist, viewMode]);
 
-    // Scalenie danych po dacie (łączenie wielu tablic w jedną tablicę obiektów z prefixami)
+    // Scalenie danych po dacie (dla /chart bierzemy selectedSymbols, dla /watchlist-chart bierzemy watchlist)
+    const symbolsToRender = viewMode === 'watchlist' ? watchlist : selectedSymbols;
     const mergedDataMap: Record<string, any> = {};
-    selectedSymbols.forEach(symbol => {
+    symbolsToRender.forEach(symbol => {
         const dataForSymbol = stockDataMap[symbol] || [];
         dataForSymbol.forEach(point => {
             if (!mergedDataMap[point.date]) {
@@ -354,6 +362,13 @@ function App() {
                     >
                         📈 Wykresy
                     </button>
+                    <button
+                        className={`view-toggle-btn ${viewMode === 'watchlist' ? 'active' : ''}`}
+                        onClick={() => handleSwitchView('watchlist')}
+                        title="Wykresy obserwowanych spółek"
+                    >
+                        ⭐ Obserwowane
+                    </button>
                 </div>
 
                 <div className="generate-report-container" style={{ display: 'flex', gap: '0.5rem' }}>
@@ -388,18 +403,20 @@ function App() {
                     </button>
                 </div>
 
-                {viewMode === 'chart' && (
+                {(viewMode === 'chart' || viewMode === 'watchlist') && (
                     <Sidebar
-                        selectedSymbols={selectedSymbols}
+                        selectedSymbols={viewMode === 'watchlist' ? watchlist : selectedSymbols}
                         hiddenSymbols={hiddenSymbols}
                         companies={companies}
                         activeMetrics={activeMetrics}
                         toggleMetric={toggleMetric}
-                        onRemoveSymbol={handleRemoveSymbol}
+                        onRemoveSymbol={viewMode === 'watchlist' ? handleToggleWatch : handleRemoveSymbol}
                         onToggleVisibility={handleToggleVisibility}
                         onOpenInsightModal={handleOpenInsight}
                         overlaySettings={overlaySettings}
                         onUpdateOverlaySettings={handleUpdateOverlaySettings}
+                        title={viewMode === 'watchlist' ? `Obserwowane spółki (${watchlist.length})` : undefined}
+                        isWatchlistMode={viewMode === 'watchlist'}
                     />
                 )}
             </div>
@@ -413,16 +430,16 @@ function App() {
                     <StockScreener onToggleChart={handleSelectSymbol} onOpenInsight={handleOpenInsight} selectedSymbols={selectedSymbols} />
                 </div>
 
-                {/* Kontener Wykresów */}
-                <div className="main-content-view" style={{ display: viewMode === 'chart' ? 'flex' : 'none' }}>
-                    {selectedSymbols.length > 0 ? (
+                {/* Kontener Wykresów (dla /chart oraz /watchlist-chart) */}
+                <div className="main-content-view" style={{ display: (viewMode === 'chart' || viewMode === 'watchlist') ? 'flex' : 'none' }}>
+                    {symbolsToRender.length > 0 ? (
                         <div className="dashboard single-dashboard chart-dashboard">
                             {loadingData ? (
                                 <div className="loading">Pobieranie danych giełdowych...</div>
                             ) : (
                                 <MetricsChart
                                     data={mergedData}
-                                    selectedSymbols={selectedSymbols.filter(s => !hiddenSymbols.includes(s))}
+                                    selectedSymbols={symbolsToRender.filter(s => !hiddenSymbols.includes(s))}
                                     activeMetrics={activeMetrics}
                                     overlaySettings={overlaySettings}
                                 />
@@ -431,7 +448,9 @@ function App() {
                     ) : (
                         !loadingCompanies && (
                             <div className="empty-state app-empty-state">
-                                Wyszukaj i dodaj spółki z panelu bocznego lub kliknij spółkę w Skanerze, aby zobaczyć i porównać profesjonalne wykresy.
+                                {viewMode === 'watchlist'
+                                    ? 'Brak obserwowanych spółek w portfelu. Dodaj spółki do obserwowanych w Skanerze lub w modalu spółki.'
+                                    : 'Wyszukaj i dodaj spółki z panelu bocznego lub kliknij spółkę w Skanerze, aby zobaczyć i porównać profesjonalne wykresy.'}
                             </div>
                         )
                     )}
@@ -468,6 +487,11 @@ function App() {
                             handleSwitchView('chart', nextSymbols);
                             setReportModalOpen(false);
                         }}
+                        onGoToWatchlistChart={() => {
+                            handleSwitchView('watchlist');
+                            setReportModalOpen(false);
+                        }}
+                        onOpenCompany={(symbol) => handleOpenInsight(symbol)}
                     />
                 )}
 
