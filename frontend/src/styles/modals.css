@@ -13,6 +13,10 @@
   align-items: center;
 }
 
+.company-modal-overlay {
+  z-index: 1200;
+}
+
 .modal-content {
   background: var(--bg-dark);
   border: 1px solid #8b5cf6;

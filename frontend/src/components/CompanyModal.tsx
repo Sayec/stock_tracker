@@ -77,7 +77,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
     }, [symbol]);
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay company-modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
                 <button className="modal-close" onClick={onClose}>×</button>
                 <div className="modal-header-container">

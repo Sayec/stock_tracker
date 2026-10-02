@@ -456,25 +456,6 @@ function App() {
                     )}
                 </div>
 
-                {/* Wspólny Modal Spółki */}
-                {insightSymbol && (
-                    <CompanyModal
-                        symbol={insightSymbol}
-                        isSelected={selectedSymbols.includes(insightSymbol)}
-                        onClose={handleCloseInsight}
-                        onToggleChart={() => handleSelectSymbol(insightSymbol)}
-                        onGoToChart={() => {
-                            const nextSymbols = selectedSymbols.includes(insightSymbol)
-                                ? selectedSymbols
-                                : [...selectedSymbols, insightSymbol];
-                            updateSelectedSymbolsAndUrl(nextSymbols);
-                            handleSwitchView('chart', nextSymbols);
-                        }}
-                        isWatched={watchlist.includes(insightSymbol)}
-                        onToggleWatch={() => handleToggleWatch(insightSymbol)}
-                    />
-                )}
-
                 {reportModalOpen && (
                     <ReportModal
                         watchlist={watchlist}
@@ -500,6 +481,27 @@ function App() {
                         quotes={watchlistQuotes}
                         onClose={() => setCalendarModalOpen(false)}
                         onGoToCompany={(symbol) => handleOpenInsight(symbol)}
+                    />
+                )}
+
+                {/* Wspólny Modal Spółki (zawsze na samym wierzchu) */}
+                {insightSymbol && (
+                    <CompanyModal
+                        symbol={insightSymbol}
+                        isSelected={selectedSymbols.includes(insightSymbol)}
+                        onClose={handleCloseInsight}
+                        onToggleChart={() => handleSelectSymbol(insightSymbol)}
+                        onGoToChart={() => {
+                            const nextSymbols = selectedSymbols.includes(insightSymbol)
+                                ? selectedSymbols
+                                : [...selectedSymbols, insightSymbol];
+                            updateSelectedSymbolsAndUrl(nextSymbols);
+                            handleSwitchView('chart', nextSymbols);
+                            setReportModalOpen(false);
+                            setCalendarModalOpen(false);
+                        }}
+                        isWatched={watchlist.includes(insightSymbol)}
+                        onToggleWatch={() => handleToggleWatch(insightSymbol)}
                     />
                 )}
 
